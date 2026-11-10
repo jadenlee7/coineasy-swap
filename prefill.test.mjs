@@ -66,14 +66,67 @@ test("missing, partial, or unknown params do not produce a prefill", () => {
     null
   );
   assert.equal(
-    resolve("?fromChain=8453&fromToken=ETH&toChain=42161&toToken=USDC"),
+    resolve("?fromChain=56&fromToken=ETH&toChain=8453&toToken=USDC"),
     null
   );
   assert.equal(
     resolve(
-      "?fromChain=Base&fromToken=0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee&toChain=Base&toToken=USDC"
+      "?fromChain=Base&fromToken=0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef&toChain=Base&toToken=USDC"
     ),
     null
+  );
+});
+
+const SQUID_NATIVE_ETH = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
+const ARB_USDC_MIXED = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831";
+
+test("numeric chain ids and token addresses map to the allowlist", () => {
+  const result = resolve(
+    `?fromChain=8453&toChain=42161&fromToken=${SQUID_NATIVE_ETH}&toToken=${ARB_USDC_MIXED}&amount=100`
+  );
+  assert.deepEqual(result, { from: BASE_ETH, to: ARB_USDC });
+  assert.equal(JSON.stringify(result).includes(SQUID_NATIVE_ETH), false);
+  assert.equal(JSON.stringify(result).includes(ARB_USDC_MIXED), false);
+  assert.equal(JSON.stringify(result).includes("100"), false);
+});
+
+test("numeric chain ids still accept token symbols", () => {
+  assert.deepEqual(
+    resolve("?fromChain=8453&fromToken=ETH&toChain=42161&toToken=USDC"),
+    { from: BASE_ETH, to: ARB_USDC }
+  );
+});
+
+test("an allowlisted address is accepted only on its own chain", () => {
+  assert.equal(
+    resolve(
+      "?fromChain=1&fromToken=0x833589fcd6edb6e08f4c7c32d4f71b54bda02913&toChain=8453&toToken=ETH"
+    ),
+    null
+  );
+  assert.equal(
+    resolve(
+      "?fromChain=137&fromToken=0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee&toChain=8453&toToken=USDC"
+    ),
+    null
+  );
+  assert.equal(
+    resolve(
+      "?fromChain=42161&fromToken=0xff970a61a04b1ca14834a43f5de4533ebddb5cc8&toChain=8453&toToken=ETH"
+    ),
+    null
+  );
+});
+
+test("polygon WETH address maps to the allowlisted ETH entry", () => {
+  const result = resolve(
+    "?fromChain=137&fromToken=0x7ceB23FD6BC0adD59E62ac25578270cfF1b9f619&toChain=10&toToken=ETH"
+  );
+  assert.equal(result.from.address, "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619");
+  assert.equal(result.from.chainId, "137");
+  assert.equal(
+    JSON.stringify(result).includes("0x7ceB23FD6BC0adD59E62ac25578270cfF1b9f619"),
+    false
   );
 });
 
@@ -135,6 +188,16 @@ test("page config with valid params sets initialAssets and skips saved state", (
   assert.deepEqual(config.initialAssets, { from: BASE_ETH, to: ARB_USDC });
   assert.equal(JSON.stringify(config).includes("12.5"), false);
   assert.equal(JSON.stringify(config).includes("amount"), false);
+});
+
+test("page config accepts the bot's numeric chain and address link", () => {
+  const config = widgetConfig(
+    `?fromChain=8453&toChain=42161&fromToken=${SQUID_NATIVE_ETH}&toToken=${ARB_USDC_MIXED}&amount=100`
+  );
+  assert.equal(config.loadPreviousStateFromLocalStorage, false);
+  assert.deepEqual(config.initialAssets, { from: BASE_ETH, to: ARB_USDC });
+  assert.equal(JSON.stringify(config.initialAssets).includes(SQUID_NATIVE_ETH), false);
+  assert.equal(JSON.stringify(config.initialAssets).includes("100"), false);
 });
 
 test("page config ignores an invalid pair and keeps saved state", () => {

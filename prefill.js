@@ -1,6 +1,7 @@
 (function (root) {
-  // Names and symbols the Telegram button may send. Anything else is ignored.
-  // Addresses below are Squid's own token-list entries, never caller input.
+  // Chain names or numeric chain ids, and token symbols or addresses.
+  // A value is used only when it matches this allowlist. Config always receives
+  // these entries, never the raw query string.
   var CHAINS = {
     ethereum: "1",
     arbitrum: "42161",
@@ -8,6 +9,13 @@
     optimism: "10",
     polygon: "137"
   };
+
+  var ALLOWED_CHAIN_IDS = {};
+  for (var chainName in CHAINS) {
+    if (Object.prototype.hasOwnProperty.call(CHAINS, chainName)) {
+      ALLOWED_CHAIN_IDS[CHAINS[chainName]] = CHAINS[chainName];
+    }
+  }
 
   var NATIVE_ETH = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 
@@ -39,11 +47,30 @@
     return "";
   }
 
-  function resolveAsset(chainName, tokenSymbol) {
-    var chainId = CHAINS[chainName];
-    var byChain = TOKEN_ADDRESSES[tokenSymbol];
-    if (!chainId || !byChain || !byChain[chainId]) return null;
-    return { address: byChain[chainId], chainId: chainId };
+  function resolveChainId(chainRaw) {
+    if (CHAINS[chainRaw]) return CHAINS[chainRaw];
+    if (ALLOWED_CHAIN_IDS[chainRaw]) return ALLOWED_CHAIN_IDS[chainRaw];
+    return "";
+  }
+
+  function resolveAsset(chainRaw, tokenRaw) {
+    var chainId = resolveChainId(chainRaw);
+    if (!chainId) return null;
+
+    var bySymbol = TOKEN_ADDRESSES[tokenRaw];
+    if (bySymbol && bySymbol[chainId]) {
+      return { address: bySymbol[chainId], chainId: chainId };
+    }
+
+    if (!/^0x[0-9a-f]{40}$/.test(tokenRaw)) return null;
+    var symbols = ["eth", "usdc"];
+    for (var i = 0; i < symbols.length; i++) {
+      var canonical = TOKEN_ADDRESSES[symbols[i]][chainId];
+      if (canonical === tokenRaw) {
+        return { address: canonical, chainId: chainId };
+      }
+    }
+    return null;
   }
 
   function resolve(search) {
