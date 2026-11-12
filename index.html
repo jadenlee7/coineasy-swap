@@ -15,9 +15,13 @@
       <iframe id="squid-widget" allowfullscreen></iframe>
       <script src="prefill.js"></script>
       <script>
+        var startParam = "";
         if (window.Telegram && window.Telegram.WebApp) {
       window.Telegram.WebApp.ready();
       window.Telegram.WebApp.expand();
+      if (window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.start_param) {
+        startParam = window.Telegram.WebApp.initDataUnsafe.start_param;
+      }
   }
 
     const config = {
@@ -116,15 +120,19 @@
                       loadPreviousStateFromLocalStorage: true
                 };
 
-    const prefill = window.CoinEasySquidPrefill.resolve(window.location.search);
+    const prefill = window.CoinEasySquidPrefill.resolve(window.location.search, startParam);
     if (prefill) {
       config.initialAssets = { from: prefill.from, to: prefill.to };
       config.loadPreviousStateFromLocalStorage = false;
     }
 
-    const encoded = encodeURIComponent(JSON.stringify(config));
-    document.getElementById("squid-widget").src =
-            "https://studio.squidrouter.com/iframe?config=" + encoded;
+    // Same-origin frame only. The integrator id stays in this config object and
+    // is not copied into the frame URL.
+    window.sessionStorage.setItem("coineasy-squid-boot", JSON.stringify({
+      config: config,
+      amount: prefill && prefill.amount ? prefill.amount : ""
+    }));
+    document.getElementById("squid-widget").src = "widget.html";
   </script>
     </body>
     </html>

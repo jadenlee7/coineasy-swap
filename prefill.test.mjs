@@ -15,13 +15,11 @@ const ARB_USDC = {
   chainId: "42161",
 };
 
-test("valid camelCase params prefill both sides and ignore amount", () => {
+test("valid camelCase params prefill both sides and the human amount", () => {
   const result = resolve(
     "?fromChain=Base&fromToken=ETH&toChain=Arbitrum&toToken=USDC&amount=25"
   );
-  assert.deepEqual(result, { from: BASE_ETH, to: ARB_USDC });
-  assert.equal(JSON.stringify(result).includes("25"), false);
-  assert.equal(JSON.stringify(result).includes("amount"), false);
+  assert.deepEqual(result, { from: BASE_ETH, to: ARB_USDC, amount: "25" });
 });
 
 test("snake_case params are accepted", () => {
@@ -84,10 +82,9 @@ test("numeric chain ids and token addresses map to the allowlist", () => {
   const result = resolve(
     `?fromChain=8453&toChain=42161&fromToken=${SQUID_NATIVE_ETH}&toToken=${ARB_USDC_MIXED}&amount=100`
   );
-  assert.deepEqual(result, { from: BASE_ETH, to: ARB_USDC });
+  assert.deepEqual(result, { from: BASE_ETH, to: ARB_USDC, amount: "100" });
   assert.equal(JSON.stringify(result).includes(SQUID_NATIVE_ETH), false);
   assert.equal(JSON.stringify(result).includes(ARB_USDC_MIXED), false);
-  assert.equal(JSON.stringify(result).includes("100"), false);
 });
 
 test("numeric chain ids still accept token symbols", () => {
@@ -136,7 +133,77 @@ test("caller-supplied addresses are never copied into the result", () => {
     `?fromChain=Base&fromToken=ETH&toChain=Base&toToken=USDC&amount=${injected}&fromAddress=${injected}`
   );
   assert.equal(JSON.stringify(result).includes(injected), false);
+  assert.equal(result.amount, undefined);
   assert.equal(result.to.address, "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913");
+});
+
+test("amount aliases are human units and invalid amounts are dropped", () => {
+  assert.equal(
+    resolve("?fromChain=Base&fromToken=ETH&toChain=Arbitrum&toToken=USDC&fromAmount=12.50")
+      .amount,
+    "12.5"
+  );
+  assert.equal(
+    resolve("?fromChain=Base&fromToken=ETH&toChain=Arbitrum&toToken=USDC&from_amount=0.010")
+      .amount,
+    "0.01"
+  );
+  assert.equal(
+    resolve("?fromChain=Base&fromToken=ETH&toChain=Arbitrum&toToken=USDC&amount=0").amount,
+    undefined
+  );
+  assert.equal(
+    resolve("?fromChain=Base&fromToken=ETH&toChain=Arbitrum&toToken=USDC&amount=-1").amount,
+    undefined
+  );
+  assert.equal(
+    resolve("?fromChain=Base&fromToken=ETH&toChain=Arbitrum&toToken=USDC&amount=1e2").amount,
+    undefined
+  );
+  assert.equal(
+    resolve("?fromChain=Base&fromToken=ETH&toChain=Arbitrum&toToken=USDC&amount=1000000000000000000")
+      .amount,
+    undefined
+  );
+  const assetsOnly = resolve(
+    "?fromChain=Base&fromToken=ETH&toChain=Arbitrum&toToken=USDC&amount=foo"
+  );
+  assert.deepEqual(assetsOnly, { from: BASE_ETH, to: ARB_USDC });
+});
+
+function encodeStart(query) {
+  return Buffer.from(query, "utf8").toString("base64url");
+}
+
+test("telegram start_param accepts a query string or its base64url form", () => {
+  const query = "fromChain=8453&fromToken=ETH&toChain=42161&toToken=USDC&amount=0.25";
+  const expected = { from: BASE_ETH, to: ARB_USDC, amount: "0.25" };
+  assert.deepEqual(resolve("", query), expected);
+  assert.deepEqual(resolve("?tgWebAppPlatform=tdesktop", encodeStart(query)), expected);
+  assert.deepEqual(
+    resolve("", encodeStart(JSON.stringify({
+      fromChain: "8453",
+      fromToken: "ETH",
+      toChain: "42161",
+      toToken: "USDC",
+      amount: "0.25",
+    }))),
+    expected
+  );
+});
+
+test("explicit query params win over start_param and unknown tokens still fail", () => {
+  const start = "fromChain=Ethereum&fromToken=ETH&toChain=Optimism&toToken=ETH&amount=9";
+  const result = resolve(
+    "?fromChain=Base&fromToken=ETH&toChain=Arbitrum&toToken=USDC&amount=2",
+    start
+  );
+  assert.deepEqual(result, { from: BASE_ETH, to: ARB_USDC, amount: "2" });
+  assert.equal(
+    resolve("", "fromChain=Solana&fromToken=ETH&toChain=Base&toToken=USDC&amount=1"),
+    null
+  );
+  assert.equal(resolve("?tgWebAppStartParam=not-a-payload"), null);
 });
 
 test("index.html keeps the integrator line and only disables saved state for a prefill", () => {
@@ -151,14 +218,29 @@ test("index.html keeps the integrator line and only disables saved state for a p
   assert.match(html, /src="prefill\.js"/);
 });
 
-function widgetConfig(search) {
+function widgetBoot(search, startParam) {
   const html = readFileSync(new URL("./index.html", import.meta.url), "utf8");
   const inline = html.match(/<script src="prefill\.js"><\/script>\s*<script>([\s\S]*?)<\/script>/);
   assert.ok(inline, "inline widget script not found");
   const iframe = { src: "" };
+  const stored = new Map();
   const window = {
     location: { search },
     CoinEasySquidPrefill: { resolve },
+    sessionStorage: {
+      setItem(key, value) {
+        stored.set(key, value);
+      },
+    },
+    Telegram: startParam
+      ? {
+          WebApp: {
+            ready() {},
+            expand() {},
+            initDataUnsafe: { start_param: startParam },
+          },
+        }
+      : undefined,
   };
   const document = {
     getElementById(id) {
@@ -168,9 +250,13 @@ function widgetConfig(search) {
   };
   const fn = new Function("window", "document", inline[1]);
   fn(window, document);
-  const config = JSON.parse(decodeURIComponent(iframe.src.split("config=")[1]));
-  delete config.integratorId;
-  return config;
+  const payload = JSON.parse(stored.get("coineasy-squid-boot"));
+  delete payload.config.integratorId;
+  return { iframe, payload };
+}
+
+function widgetConfig(search, startParam) {
+  return widgetBoot(search, startParam).payload.config;
 }
 
 test("page config without params keeps saved state and has no initial assets", () => {
@@ -180,28 +266,57 @@ test("page config without params keeps saved state and has no initial assets", (
   assert.equal(config.themeType, "dark");
 });
 
-test("page config with valid params sets initialAssets and skips saved state", () => {
-  const config = widgetConfig(
+test("page config with valid params sets initialAssets, amount, and skips saved state", () => {
+  const boot = widgetBoot(
     "?fromChain=Base&fromToken=ETH&toChain=Arbitrum&toToken=USDC&amount=12.5"
   );
-  assert.equal(config.loadPreviousStateFromLocalStorage, false);
-  assert.deepEqual(config.initialAssets, { from: BASE_ETH, to: ARB_USDC });
-  assert.equal(JSON.stringify(config).includes("12.5"), false);
-  assert.equal(JSON.stringify(config).includes("amount"), false);
+  assert.equal(boot.iframe.src, "widget.html");
+  assert.equal(boot.iframe.src.includes("12.5"), false);
+  assert.equal(boot.payload.config.loadPreviousStateFromLocalStorage, false);
+  assert.deepEqual(boot.payload.config.initialAssets, { from: BASE_ETH, to: ARB_USDC });
+  assert.equal(boot.payload.amount, "12.5");
+  assert.equal(JSON.stringify(boot.payload.config.initialAssets).includes("12.5"), false);
 });
 
 test("page config accepts the bot's numeric chain and address link", () => {
-  const config = widgetConfig(
+  const boot = widgetBoot(
     `?fromChain=8453&toChain=42161&fromToken=${SQUID_NATIVE_ETH}&toToken=${ARB_USDC_MIXED}&amount=100`
   );
-  assert.equal(config.loadPreviousStateFromLocalStorage, false);
-  assert.deepEqual(config.initialAssets, { from: BASE_ETH, to: ARB_USDC });
-  assert.equal(JSON.stringify(config.initialAssets).includes(SQUID_NATIVE_ETH), false);
-  assert.equal(JSON.stringify(config.initialAssets).includes("100"), false);
+  assert.equal(boot.payload.config.loadPreviousStateFromLocalStorage, false);
+  assert.deepEqual(boot.payload.config.initialAssets, { from: BASE_ETH, to: ARB_USDC });
+  assert.equal(boot.payload.amount, "100");
+  assert.equal(JSON.stringify(boot.payload.config.initialAssets).includes(SQUID_NATIVE_ETH), false);
+});
+
+test("page config reads a telegram start_param when the URL has no swap query", () => {
+  const boot = widgetBoot(
+    "",
+    "fromChain=Base&fromToken=ETH&toChain=Arbitrum&toToken=USDC&amount=3"
+  );
+  assert.equal(boot.iframe.src, "widget.html");
+  assert.deepEqual(boot.payload.config.initialAssets, { from: BASE_ETH, to: ARB_USDC });
+  assert.equal(boot.payload.amount, "3");
 });
 
 test("page config ignores an invalid pair and keeps saved state", () => {
-  const config = widgetConfig("?fromChain=Base&fromToken=ETH&toChain=Solana&toToken=USDC&amount=3");
-  assert.equal(config.loadPreviousStateFromLocalStorage, true);
-  assert.equal("initialAssets" in config, false);
+  const boot = widgetBoot("?fromChain=Base&fromToken=ETH&toChain=Solana&toToken=USDC&amount=3");
+  assert.equal(boot.payload.config.loadPreviousStateFromLocalStorage, true);
+  assert.equal("initialAssets" in boot.payload.config, false);
+  assert.equal(boot.payload.amount, "");
+  assert.equal(boot.iframe.src, "widget.html");
+});
+
+test("the mounted widget bundle does not repeat the integrator id", () => {
+  const html = readFileSync(new URL("./index.html", import.meta.url), "utf8");
+  const widget = readFileSync(new URL("./widget.html", import.meta.url), "utf8");
+  const bundle = readFileSync(new URL("./squid-mount.js", import.meta.url), "utf8");
+  const entry = readFileSync(new URL("./mount-entry.js", import.meta.url), "utf8");
+  const id = html.match(/integratorId:\s*"([^"]+)"/)[1];
+  assert.equal(widget.includes(id), false);
+  assert.equal(bundle.includes(id), false);
+  assert.equal(entry.includes(id), false);
+  assert.match(entry, /fromPrice/);
+  assert.match(widget, /src="squid-mount\.js"/);
+  assert.equal(html.includes("studio.squidrouter.com"), false);
+  assert.equal(html.includes("console."), false);
 });

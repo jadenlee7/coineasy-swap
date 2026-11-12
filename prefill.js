@@ -37,14 +37,80 @@
     }
   };
 
-  function firstParam(params, names) {
+  var CHAIN_KEYS = ["fromChain", "from_chain"];
+  var TO_CHAIN_KEYS = ["toChain", "to_chain"];
+  var TOKEN_KEYS = ["fromToken", "from_token"];
+  var TO_TOKEN_KEYS = ["toToken", "to_token"];
+  // The easyfarm quote button uses `amount` (human units, e.g. 12.5).
+  // fromAmount / from_amount match Squid's route field name for the same value.
+  var AMOUNT_KEYS = ["amount", "fromAmount", "from_amount"];
+  var START_KEYS = ["tgWebAppStartParam", "startapp"];
+
+  function firstRaw(params, names) {
     for (var i = 0; i < names.length; i++) {
       var value = params.get(names[i]);
       if (value != null && String(value).trim() !== "") {
-        return String(value).trim().toLowerCase();
+        return String(value).trim();
       }
     }
     return "";
+  }
+
+  function pick(primary, fallback, names, lower) {
+    var value = firstRaw(primary, names) || firstRaw(fallback, names);
+    if (!value) return "";
+    return lower ? value.toLowerCase() : value;
+  }
+
+  function decodeBase64Url(value) {
+    if (!/^[A-Za-z0-9_-]+$/.test(value) || value.length < 4) return "";
+    var padded = value.replace(/-/g, "+").replace(/_/g, "/");
+    while (padded.length % 4) padded += "=";
+    try {
+      var binary = atob(padded);
+      if (/[\u0000-\u0008\u000e-\u001f]/.test(binary)) return "";
+      return binary;
+    } catch (err) {
+      return "";
+    }
+  }
+
+  function searchFromDecoded(decoded) {
+    var text = String(decoded || "").trim();
+    if (!text) return "";
+    if (text.charAt(0) === "?") text = text.slice(1);
+    if (text.charAt(0) !== "{") return text.indexOf("=") === -1 ? "" : text;
+    try {
+      var obj = JSON.parse(text);
+      if (!obj || typeof obj !== "object") return "";
+      var params = new URLSearchParams();
+      var keys = CHAIN_KEYS.concat(TO_CHAIN_KEYS, TOKEN_KEYS, TO_TOKEN_KEYS, AMOUNT_KEYS);
+      for (var i = 0; i < keys.length; i++) {
+        var key = keys[i];
+        if (obj[key] != null && String(obj[key]).trim() !== "") {
+          params.set(key, String(obj[key]).trim());
+        }
+      }
+      return params.toString();
+    } catch (err) {
+      return "";
+    }
+  }
+
+  // Plain query strings, and Telegram startapp payloads (query string or base64url).
+  function decodeStartParam(value) {
+    var raw = String(value || "").trim();
+    if (!raw) return "";
+    if (raw.charAt(0) === "?") raw = raw.slice(1);
+    if (raw.indexOf("%") !== -1 && raw.indexOf("=") === -1) {
+      try {
+        raw = decodeURIComponent(raw);
+      } catch (err) {
+        return "";
+      }
+    }
+    if (raw.indexOf("=") !== -1 || raw.charAt(0) === "{") return searchFromDecoded(raw);
+    return searchFromDecoded(decodeBase64Url(raw));
   }
 
   function resolveChainId(chainRaw) {
@@ -73,20 +139,34 @@
     return null;
   }
 
-  function resolve(search) {
-    var raw = String(search || "");
-    if (raw.charAt(0) === "?") raw = raw.slice(1);
-    var params = new URLSearchParams(raw);
+  // Human token units for the widget input. Zero, wei blobs, and junk are ignored.
+  function normalizeAmount(raw) {
+    var value = String(raw || "").trim();
+    if (!/^(?:0|[1-9]\d{0,17})(?:\.\d{1,18})?$/.test(value)) return "";
+    if (value.indexOf(".") !== -1) {
+      value = value.replace(/0+$/, "").replace(/\.$/, "");
+    }
+    if (!/[1-9]/.test(value)) return "";
+    return value;
+  }
+
+  function resolve(search, startParam) {
+    var params = new URLSearchParams(String(search || "").replace(/^\?/, ""));
+    var embedded = decodeStartParam(startParam || firstRaw(params, START_KEYS));
+    var fallback = new URLSearchParams(embedded);
     var fromAsset = resolveAsset(
-      firstParam(params, ["fromChain", "from_chain"]),
-      firstParam(params, ["fromToken", "from_token"])
+      pick(params, fallback, CHAIN_KEYS, true),
+      pick(params, fallback, TOKEN_KEYS, true)
     );
     var toAsset = resolveAsset(
-      firstParam(params, ["toChain", "to_chain"]),
-      firstParam(params, ["toToken", "to_token"])
+      pick(params, fallback, TO_CHAIN_KEYS, true),
+      pick(params, fallback, TO_TOKEN_KEYS, true)
     );
     if (!fromAsset || !toAsset) return null;
-    return { from: fromAsset, to: toAsset };
+    var result = { from: fromAsset, to: toAsset };
+    var amount = normalizeAmount(pick(params, fallback, AMOUNT_KEYS, false));
+    if (amount) result.amount = amount;
+    return result;
   }
 
   root.CoinEasySquidPrefill = { resolve: resolve };
