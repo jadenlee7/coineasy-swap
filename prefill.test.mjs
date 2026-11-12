@@ -306,6 +306,28 @@ test("page config ignores an invalid pair and keeps saved state", () => {
   assert.equal(boot.iframe.src, "widget.html");
 });
 
+const BASE_USDC = {
+  address: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+  chainId: "8453",
+};
+const ARB_ETH = {
+  address: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  chainId: "42161",
+};
+
+test("telegram start_param accepts a compact chain-token-amount payload", () => {
+  const expected = { from: BASE_USDC, to: ARB_ETH, amount: "100" };
+  assert.deepEqual(resolve("", "8453-USDC-42161-ETH-100"), expected);
+  assert.equal(resolve("", "8453-USDC-42161-ETH-0p05").amount, "0.05");
+  assert.equal(resolve("", "56-USDC-8453-ETH-1"), null);
+});
+
+test("page config reads a compact telegram start_param", () => {
+  const boot = widgetBoot("", "8453-USDC-42161-ETH-100");
+  assert.deepEqual(boot.payload.config.initialAssets, { from: BASE_USDC, to: ARB_ETH });
+  assert.equal(boot.payload.amount, "100");
+});
+
 test("the mounted widget bundle does not repeat the integrator id", () => {
   const html = readFileSync(new URL("./index.html", import.meta.url), "utf8");
   const widget = readFileSync(new URL("./widget.html", import.meta.url), "utf8");

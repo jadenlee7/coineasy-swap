@@ -97,7 +97,22 @@
     }
   }
 
-  // Plain query strings, and Telegram startapp payloads (query string or base64url).
+  // Compact startapp: 8453-USDC-42161-ETH-100 (dot in amount becomes p). Stays under Telegram's 64-char limit.
+  var COMPACT = /^(\d{1,9})-([A-Za-z][A-Za-z0-9]{1,9})-(\d{1,9})-([A-Za-z][A-Za-z0-9]{1,9})-([0-9]+(?:p[0-9]+)?)$/;
+
+  function decodeCompact(value) {
+    var match = COMPACT.exec(String(value || "").trim());
+    if (!match) return "";
+    return (
+      "fromChain=" + match[1] +
+      "&fromToken=" + match[2] +
+      "&toChain=" + match[3] +
+      "&toToken=" + match[4] +
+      "&amount=" + match[5].replace("p", ".")
+    );
+  }
+
+  // Plain query strings, compact startapp, and Telegram startapp payloads (query string or base64url).
   function decodeStartParam(value) {
     var raw = String(value || "").trim();
     if (!raw) return "";
@@ -109,6 +124,8 @@
         return "";
       }
     }
+    var compact = decodeCompact(raw);
+    if (compact) return compact;
     if (raw.indexOf("=") !== -1 || raw.charAt(0) === "{") return searchFromDecoded(raw);
     return searchFromDecoded(decodeBase64Url(raw));
   }
