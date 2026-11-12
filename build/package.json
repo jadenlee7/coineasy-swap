@@ -1,0 +1,17 @@
+{
+  "name": "coineasy-swap-build",
+  "private": true,
+  "description": "Builds ../squid-mount.js from ../mount-entry.js",
+  "scripts": {
+    "build": "sh build.sh"
+  },
+  "dependencies": {
+    "@0xsquid/react-hooks": "10.0.0",
+    "@0xsquid/widget": "8.0.0",
+    "@tanstack/query-core": "^5.107.1",
+    "esbuild": "^0.28.2",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "stream-browserify": "^3.0.0"
+  }
+}
