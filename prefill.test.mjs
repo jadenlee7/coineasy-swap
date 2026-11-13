@@ -316,6 +316,36 @@ test("page config reads a compact telegram start_param", () => {
   assert.equal(boot.payload.amount, "100");
 });
 
+test("a short custody and fee notice sits directly above the widget", () => {
+  const html = readFileSync(new URL("./index.html", import.meta.url), "utf8");
+  const css = readFileSync(new URL("./page.css", import.meta.url), "utf8");
+  const notice = "CoinEasy는 자금을 보관하지 않아요. 견적에는 CoinEasy 연동 수수료 0.25%가 포함돼요.";
+  const marker = `<p class="notice">${notice}</p>`;
+  const noticeAt = html.indexOf(marker);
+  assert.equal((html.match(/class="notice"/g) || []).length, 1);
+  assert.ok(noticeAt > 0);
+  assert.match(html.slice(noticeAt + marker.length), /^\s*<main id="squid-root"/);
+  for (const word of ["공식", "안전", "수익", "이자", "예치", "APY", "APR", "yield"]) {
+    assert.equal(notice.toLowerCase().includes(word.toLowerCase()), false, word);
+  }
+  const id = html.match(/integratorId:\s*"([^"]+)"/)[1];
+  const visible = html.replace(/<script[\s\S]*?<\/script>/gi, "");
+  assert.equal(visible.includes(id), false);
+  assert.equal(visible.includes(notice), true);
+  assert.equal(/0x[a-fA-F0-9]{40}/.test(visible), false);
+  assert.match(css, /\.notice \{[^}]*font-size:\s*12px/);
+  assert.equal(/\.notice \{[^}]*background/.test(css), false);
+});
+
+test("the buy tab is disabled in the widget config", () => {
+  for (const [search, start] of [["", ""], ["?fromChain=Base&fromToken=ETH&toChain=Arbitrum&toToken=USDC&amount=1", ""]]) {
+    const config = widgetConfig(search, start);
+    assert.equal(config.tabs.swap, true);
+    assert.equal(config.tabs.buy, false);
+    assert.equal(config.tabs.send, false);
+  }
+});
+
 test("the widget mounts in index.html with no iframe, after the boot script", () => {
   const html = readFileSync(new URL("./index.html", import.meta.url), "utf8");
   assert.equal(/<iframe/i.test(html), false);

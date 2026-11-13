@@ -10,6 +10,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
+  <p class="notice">CoinEasy는 자금을 보관하지 않아요. 견적에는 CoinEasy 연동 수수료 0.25%가 포함돼요.</p>
   <main id="squid-root" class="widget"></main>
 
   <section class="card" id="wallet-help">
@@ -137,7 +138,7 @@
         }
       },
       themeType: "dark",
-      tabs: { swap: true, buy: true, send: false },
+      tabs: { swap: true, buy: false, send: false },
       priceImpactWarnings: { warning: 3, critical: 5 },
       loadPreviousStateFromLocalStorage: true
     };
