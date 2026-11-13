@@ -1,0 +1,9 @@
+Squid monogram and "Powered by Squid" watermark
+
+Source: https://github.com/0xsquid/assets (Apache License 2.0)
+Files:
+  squid-brand-assets/icon/squid-icon-white.svg
+  squid-brand-assets/powered-by-watermark/powered-by/powered-by-white.svg
+
+These files are copied into this project so the mini app does not hotlink them.
+See LICENSE in this directory.

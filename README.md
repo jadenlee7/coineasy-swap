@@ -7,7 +7,7 @@ CoinEasy x Squid swap, a Telegram Mini App (`t.me/Squid_quiz_bot/swap`).
 - `index.html` mounts Squid's official widget (`@0xsquid/widget` 8.0.0) directly in the page. Quotes and routes come from Squid's API (`v2.api.squidrouter.com`); transactions can be tracked on `scan.squidrouter.com`.
 - No iframe. Squid's wallet code (WalletConnect modal and deep links) checks `window.Telegram` and whether it runs in a frame. In the old iframe it could not see Telegram and tried to navigate the top window, so wallet hand-off failed in Telegram.
 - `page.js`: Telegram chrome (black header, vertical swipe off) and "open in wallet app" fallbacks (MetaMask, Trust, Coinbase, browser) through `Telegram.WebApp.openLink`, keeping the same prefill.
-- `page.css`: page styling after squid.inc (black, neon `#E6FA36`, lavender `#BC8EE4`, Geist).
+- `page.css`: squid.inc tokens (black, `#e6fa36`, lavender `#bc8ee4`). Geist Sans and Pretendard are self-hosted (`fonts/`, OFL). The white Squid monogram and Powered by Squid watermark are from `github.com/0xsquid/assets` (Apache-2.0, see `assets/squid/`).
 - `widget.html`: old entry point, forwards to `index.html` with the same query.
 - `squid-mount.js`: built from `mount-entry.js` (`cd build && npm install && sh build.sh`).
 
