@@ -35,17 +35,19 @@ function readBoot() {
   }
 }
 
-function mount(root, config, amount) {
+function mount(root, config, amount, advancedUi) {
   if (amount) {
     useTransactionStore.setState({ fromPrice: String(amount) });
   }
-  createRoot(root).render(createElement(SquidWidget, { config: config }));
+  var props = { config: config };
+  if (advancedUi) props.advancedUi = advancedUi;
+  createRoot(root).render(createElement(SquidWidget, props));
 }
 
 var boot = readBoot();
 var root = document.getElementById("squid-root");
 if (root && boot) {
-  mount(root, boot.config, boot.amount || "");
+  mount(root, boot.config, boot.amount || "", boot.advancedUi);
   document.documentElement.setAttribute("data-squid-mounted", "1");
 } else if (root) {
   root.textContent = "스왑 화면을 불러오지 못했어요. 앱을 닫고 다시 열어 주세요.";

@@ -4,47 +4,54 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#000000">
-  <title>CoinEasy x Squid 스왑</title>
-  <link rel="icon" href="squid-logo.svg" type="image/svg+xml">
+  <title>스왑</title>
+  <link rel="icon" href="assets/squid/squid-icon-white.svg" type="image/svg+xml">
   <link rel="stylesheet" href="page.css">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
-  <header class="top">
-    <div class="brand">
-      <span class="logo"><img src="squid-logo.svg" alt="Squid" width="26" height="26"></span>
-      <span class="brand-name">CoinEasy <span class="x">x</span> Squid</span>
-    </div>
-    <a class="pill pill-neon" href="https://www.squidrouter.com" target="_blank" rel="noopener" data-external>Squid 공식 엔진</a>
-  </header>
+  <div class="shell">
+    <header class="top">
+      <img class="mark" src="assets/squid/squid-icon-white.svg" alt="" width="40" height="40">
+      <h1>스왑</h1>
+    </header>
+    <p class="subhead">한 번 서명하면, Squid가 나머지를 처리해요.</p>
 
-  <p class="trust">
-    <svg class="trust-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5 2.5 3.7v4c0 3.2 2.3 5.7 5.5 6.8 3.2-1.1 5.5-3.6 5.5-6.8v-4L8 1.5Zm-1 9.3L4.6 8.4l1-1L7 8.8l3.4-3.4 1 1L7 10.8Z"/></svg>
-    <span>Squid 공식 스왑 엔진에 바로 연결돼요. 봇은 키를 보관하지 않고, 서명은 내 지갑에서만 해요.</span>
-  </p>
+    <p id="swap-status" class="status" hidden></p>
+    <main id="squid-root" class="widget"></main>
 
-  <main id="squid-root" class="widget"></main>
+    <p class="trust">
+      <svg class="trust-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5 2.5 3.7v4c0 3.2 2.3 5.7 5.5 6.8 3.2-1.1 5.5-3.6 5.5-6.8v-4L8 1.5Zm-1 9.3L4.6 8.4l1-1L7 8.8l3.4-3.4 1 1L7 10.8Z"/></svg>
+      <span>Squid 공식 스왑 엔진에 바로 연결돼요. 봇은 키를 보관하지 않고, 서명은 내 지갑에서만 해요.</span>
+    </p>
 
-  <section class="card" id="wallet-help">
-    <h2>지갑 연결이 안 되면</h2>
-    <p>텔레그램 안에서는 <b>WalletConnect</b>를 고르면 가장 잘 돼요. 그래도 안 되면 지갑 앱에서 바로 열어 주세요. 수량은 그대로 채워져요.</p>
-    <div class="wallet-links">
-      <button type="button" class="pill pill-white" data-open="metamask">MetaMask로 열기</button>
-      <button type="button" class="pill pill-white" data-open="trust">Trust로 열기</button>
-      <button type="button" class="pill pill-white" data-open="coinbase">Coinbase로 열기</button>
-      <button type="button" class="pill pill-ghost" data-open="browser">브라우저로 열기</button>
-    </div>
-  </section>
+    <section class="card" id="wallet-help">
+      <h2>지갑 연결이 안 되면</h2>
+      <p>텔레그램 안에서는 <b>WalletConnect</b>를 고르면 가장 잘 돼요. 그래도 안 되면 지갑 앱에서 바로 열어 주세요. 수량은 그대로 채워져요.</p>
+      <div class="wallet-links">
+        <button type="button" class="btn btn-secondary" data-open="metamask">MetaMask로 열기</button>
+        <button type="button" class="btn btn-secondary" data-open="trust">Trust로 열기</button>
+        <button type="button" class="btn btn-secondary" data-open="coinbase">Coinbase로 열기</button>
+        <button type="button" class="btn btn-secondary" data-open="browser">브라우저로 열기</button>
+      </div>
+    </section>
 
-  <section class="card card-facts">
-    <h2>어디에 연결되나요</h2>
-    <ul class="facts">
-      <li><span>스왑 화면</span><b>Squid 공식 위젯</b></li>
-      <li><span>견적과 경로</span><b>Squid 공식 API</b></li>
-      <li><span>거래 조회</span><a href="https://scan.squidrouter.com" target="_blank" rel="noopener" data-external>scan.squidrouter.com</a></li>
-    </ul>
-    <p class="fine">CoinEasy는 자금을 맡지 않아요. 서명 전에 수량과 수수료를 꼭 확인해 주세요.</p>
-  </section>
+    <section class="card card-facts">
+      <h2>어디에 연결되나요</h2>
+      <ul class="facts">
+        <li><span>스왑 화면</span><b>Squid 공식 위젯</b></li>
+        <li><span>견적과 경로</span><b>Squid 공식 API</b></li>
+        <li><span>거래 조회</span><a href="https://scan.squidrouter.com" target="_blank" rel="noopener" data-external>scan.squidrouter.com</a></li>
+      </ul>
+      <p class="fine">CoinEasy는 자금을 맡지 않아요. 서명 전에 수량과 수수료를 꼭 확인해 주세요.</p>
+    </section>
+
+    <footer class="powered">
+      <a href="https://www.squidrouter.com" target="_blank" rel="noopener" data-external>
+        <img src="assets/squid/powered-by-white.svg" alt="Powered by Squid" width="1109" height="305">
+      </a>
+    </footer>
+  </div>
 
   <script src="page.js"></script>
   <script src="prefill.js"></script>
@@ -63,91 +70,92 @@
             integratorId: "coineasy-f33b68ba-dba8-4571-8c26-5f09e1876f9f",
       theme: {
         borderRadius: {
-          "button-lg-primary": "3.75rem",
-          "button-lg-secondary": "3.75rem",
-          "button-lg-tertiary": "3.75rem",
-          "button-md-primary": "1.25rem",
-          "button-md-secondary": "1.25rem",
-          "button-md-tertiary": "1.25rem",
-          "button-sm-primary": "1.25rem",
-          "button-sm-secondary": "1.25rem",
-          "button-sm-tertiary": "1.25rem",
+          "button-lg-primary": "999px",
+          "button-lg-secondary": "999px",
+          "button-lg-tertiary": "999px",
+          "button-md-primary": "999px",
+          "button-md-secondary": "999px",
+          "button-md-tertiary": "999px",
+          "button-sm-primary": "999px",
+          "button-sm-secondary": "999px",
+          "button-sm-tertiary": "999px",
           container: "1.875rem",
-          input: "9999px",
-          "menu-sm": "0.9375rem",
+          input: "999px",
+          "menu-sm": "1.25rem",
           "menu-lg": "1.25rem",
           modal: "1.875rem"
         },
         fontSize: {
           caption: "0.875rem",
-          "body-small": "1.14375rem",
-          "body-medium": "1.40625rem",
-          "body-large": "1.75625rem",
-          "heading-small": "2.1875rem",
-          "heading-medium": "3.08125rem",
-          "heading-large": "4.40625rem"
+          "body-small": "1rem",
+          "body-medium": "1.0625rem",
+          "body-large": "1.25rem",
+          "heading-small": "1.5rem",
+          "heading-medium": "1.75rem",
+          "heading-large": "2rem"
         },
         fontWeight: {
           caption: "400",
           "body-small": "400",
-          "body-medium": "400",
-          "body-large": "400",
-          "heading-small": "400",
-          "heading-medium": "400",
-          "heading-large": "400"
+          "body-medium": "500",
+          "body-large": "500",
+          "heading-small": "500",
+          "heading-medium": "500",
+          "heading-large": "500"
         },
-        fontFamily: { "squid-main": "GeistVariable, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" },
+        fontFamily: {
+          "squid-main": "\"Geist Sans\", Pretendard, \"Noto Sans KR\", Inter, system-ui, sans-serif"
+        },
         boxShadow: {
-          container: "0px 0px 0px 1px rgba(255,255,255,0.06), 0px 10px 40px -10px rgba(188,142,228,0.25)"
+          container: "0px 0px 0px 1px rgba(255,255,255,0.08)"
         },
-        // Squid brand: black, neon yellow #E6FA36, lavender #BC8EE4.
         color: {
-          "grey-100": "#FBFBFD",
-          "grey-200": "#EDEDED",
-          "grey-300": "#D4D4D4",
-          "grey-400": "#ACACAC",
-          "grey-500": "#8F8F8F",
-          "grey-600": "#6B6B6B",
-          "grey-700": "#3C3C3C",
-          "grey-800": "#1E1E1E",
-          "grey-900": "#0E0E0E",
-          "royal-300": "#DCC4F3",
-          "royal-400": "#BC8EE4",
-          "royal-500": "#A877D6",
-          "royal-600": "#8F5CC4",
-          "royal-700": "#6F43A0",
-          "status-positive": "#55E56F",
-          "status-negative": "#FF5B5B",
-          "status-partial": "#F3AF25",
-          "highlight-700": "#E6FA36",
-          "animation-bg": "#BC8EE4",
-          "animation-text": "#000000",
-          "button-lg-primary-bg": "#E6FA36",
-          "button-lg-primary-text": "#000000",
-          "button-lg-secondary-bg": "#FBFBFD",
-          "button-lg-secondary-text": "#000000",
-          "button-lg-tertiary-bg": "#1E1E1E",
-          "button-lg-tertiary-text": "#D4D4D4",
-          "button-md-primary-bg": "#E6FA36",
-          "button-md-primary-text": "#000000",
-          "button-md-secondary-bg": "#FBFBFD",
-          "button-md-secondary-text": "#000000",
-          "button-md-tertiary-bg": "#1E1E1E",
-          "button-md-tertiary-text": "#D4D4D4",
-          "button-sm-primary-bg": "#E6FA36",
-          "button-sm-primary-text": "#000000",
-          "button-sm-secondary-bg": "#FBFBFD",
-          "button-sm-secondary-text": "#000000",
-          "button-sm-tertiary-bg": "#1E1E1E",
-          "button-sm-tertiary-text": "#D4D4D4",
-          "input-bg": "#0E0E0E",
-          "input-placeholder": "#6B6B6B",
-          "input-text": "#EDEDED",
-          "input-selection": "#BC8EE4",
-          "menu-bg": "#0E0E0EE6",
-          "menu-text": "#FBFBFDA8",
-          "menu-backdrop": "#FBFBFD1A",
-          "modal-backdrop": "#000000B3"
+          "grey-100": "#ffffff",
+          "grey-200": "#ededed",
+          "grey-300": "#d4d4d4",
+          "grey-400": "#acacac",
+          "grey-500": "#8f8f8f",
+          "grey-600": "#6b6b6b",
+          "grey-700": "#3c3c3c",
+          "grey-800": "#141414",
+          "grey-900": "#000000",
+          "royal-300": "#dcc4f3",
+          "royal-400": "#bc8ee4",
+          "royal-500": "#a877d6",
+          "royal-600": "#8f5cc4",
+          "royal-700": "#6f43a0",
+          "status-positive": "#55e56f",
+          "status-negative": "#ffb0b0",
+          "status-partial": "#f3af25",
+          "highlight-700": "#e6fa36",
+          "animation-bg": "#e6fa36",
+          "animation-text": "#090909",
+          "button-lg-primary-bg": "#e6fa36",
+          "button-lg-primary-text": "#090909",
+          "button-lg-secondary-bg": "#ffffff",
+          "button-lg-secondary-text": "#080808",
+          "button-lg-tertiary-bg": "#141414",
+          "button-lg-tertiary-text": "#ffffff",
+          "button-md-primary-bg": "#e6fa36",
+          "button-md-primary-text": "#090909",
+          "button-md-secondary-bg": "#ffffff",
+          "button-md-secondary-text": "#080808",
+          "button-md-tertiary-bg": "#141414",
+          "button-md-tertiary-text": "#ffffff",
+          "button-sm-primary-bg": "#e6fa36",
+          "button-sm-primary-text": "#090909",
+          "button-sm-secondary-bg": "#ffffff",
+          "button-sm-secondary-text": "#080808",
+          "button-sm-tertiary-bg": "#141414",
+          "button-sm-tertiary-text": "#ffffff",
+          "input-bg": "#ffffff",
+          "input-placeholder": "#6b6b6b",
+          "input-text": "#000000",
+          "input-selection": "#bc8ee4",
+          "menu-bg": "#000000e6",
+          "menu-text": "#ffffffc2",
+          "menu-backdrop": "#ffffff1a",
+          "modal-backdrop": "#000000b3"
         }
       },
       themeType: "dark",
@@ -166,6 +174,13 @@
     // see window.Telegram and open wallet apps the Telegram way.
     window.__coineasyBoot = {
       config: config,
+      advancedUi: {
+        labels: {
+          submitSwapButton: { swap: "스왑하기" },
+          titles: { swap: "스왑" },
+          tabs: { swap: "스왑", buy: "구매" }
+        }
+      },
       amount: prefill && prefill.amount ? prefill.amount : "",
       startParam: startParam
     };
