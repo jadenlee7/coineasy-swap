@@ -1,0 +1,81 @@
+name: set pr description
+on:
+  push:
+    paths:
+      - .github/workflows/set-pr-body.yml
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  set-body:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Replace pull request description
+        uses: actions/github-script@v7
+        env:
+          BODY_B64: |
+            IyMgV2hhdAoKUmVidWlsZHMgdGhlIFRlbGVncmFtIHN3YXAgTWluaSBBcHAgKGB0Lm1lL1NxdWlk
+            X3F1aXpfYm90L3N3YXBgKSBzbyB3YWxsZXQgY29ubmVjdCB3b3JrcyBpbnNpZGUgVGVsZWdyYW0g
+            YW5kIHRoZSBwYWdlIGxvb2tzIGxpa2Ugc3F1aWQuaW5jLgoKUHJldmlldyAoZHJhZnQgZGVwbG95
+            LCBub3QgcHJvZHVjdGlvbik6IGh0dHBzOi8vdjItcHJldmlldy0tc3F1aWRrb3JlYS5uZXRsaWZ5
+            LmFwcC8/ZnJvbUNoYWluPTg0NTMmZnJvbVRva2VuPVVTREMmdG9DaGFpbj00MjE2MSZ0b1Rva2Vu
+            PUVUSCZhbW91bnQ9MTAwCgojIyBXYWxsZXQgY29ubmVjdCBpbiBUZWxlZ3JhbQoKLSAqKk5vIGlm
+            cmFtZSBhbnkgbW9yZS4qKiBgQDB4c3F1aWQvd2lkZ2V0YCBub3cgbW91bnRzIGRpcmVjdGx5IGlu
+            IGBpbmRleC5odG1sYC4KICAtIFNxdWlkJ3MgV2FsbGV0Q29ubmVjdCBtb2RhbCAoYEB3YWxsZXRj
+            b25uZWN0L21vZGFsYCAyLjcpIGFuZCBXYWxsZXRDb25uZWN0J3MgZGVlcC1saW5rIGhlbHBlciBi
+            b3RoIGNoZWNrIGB3aW5kb3cuVGVsZWdyYW1gIC8gYFRlbGVncmFtV2Vidmlld1Byb3h5YC4gV2hl
+            biB0aG9zZSBhcmUgZm91bmQsIHRoZXkgb3BlbiB3YWxsZXQgYXBwcyB3aXRoIGB3aW5kb3cub3Bl
+            bijigKYsICJfYmxhbmsiKWAsIHdoaWNoIGlzIHRoZSBUZWxlZ3JhbSBwYXRoLgogIC0gSW5zaWRl
+            IHRoZSBvbGQgc2FtZS1vcmlnaW4gaWZyYW1lLCBgd2luZG93LlRlbGVncmFtYCB3YXMgdW5kZWZp
+            bmVkLCBhbmQgYGlzSWZyYW1lKClgIG1hZGUgdGhlIGhlbHBlciB0YXJnZXQgYF90b3BgLiBUaGF0
+            IHJlcGxhY2VkIG9yIGJsb2NrZWQgdGhlIE1pbmkgQXBwIGluc3RlYWQgb2YgaGFuZGluZyBvZmYg
+            dG8gdGhlIHdhbGxldC4KICAtIFJlbW92aW5nIHRoZSBpZnJhbWUgYWxzbyByZW1vdmVzIHRoZSBz
+            ZXNzaW9uU3RvcmFnZSBib290IGhhbmQtb2ZmLCB3aGljaCBpcyB3aGF0IHNob3dlZCAiT3BlbiB0
+            aGlzIHN3YXAgZnJvbSBDb2luRWFzeS4iIG9uIFRlbGVncmFtIGlPUy4KLSBXYWxsZXRDb25uZWN0
+            IHVzZXMgU3F1aWQncyBvd24gYnVpbHQtaW4gcHJvamVjdElkIChpbiBgQDB4c3F1aWQvcmVhY3Qt
+            aG9va3NgKS4gTm8gZXh0cmEgY29uZmlnIGlzIG5lZWRlZC4KLSBPbiBtb2JpbGUsIFNxdWlkIGxp
+            c3RzIFdhbGxldENvbm5lY3QgZmlyc3QuCi0gU2ltdWxhdGVkIFRlbGVncmFtIGlPUyBjaGVjazog
+            dGFwcGluZyBNZXRhTWFzayBpbiB0aGUgV2FsbGV0Q29ubmVjdCBzaGVldCBjYWxscyBgd2luZG93
+            Lm9wZW4oIm1ldGFtYXNrOi8vd2M/dXJpPeKApiIsICJfYmxhbmsiKWAuCi0gKipGYWxsYmFjayBj
+            YXJkOioqIGJ1dHRvbnMgb3BlbiB0aGUgc2FtZSBwcmVmaWxsZWQgc3dhcCBpbiB0aGUgTWV0YU1h
+            c2ssIFRydXN0LCBvciBDb2luYmFzZSBpbi1hcHAgYnJvd3Nlciwgb3IgaW4gdGhlIHN5c3RlbSBi
+            cm93c2VyLiBUaGV5IGdvIHRocm91Z2ggYFRlbGVncmFtLldlYkFwcC5vcGVuTGlua2AsIHVzaW5n
+            IGBtZXRhbWFzay5hcHAubGluay9kYXBwYCwgYGxpbmsudHJ1c3R3YWxsZXQuY29tL29wZW5fdXJs
+            YCwgYW5kIGBnby5jYi13LmNvbS9kYXBwYC4KLSBUZWxlZ3JhbSBjaHJvbWU6IGJsYWNrIGhlYWRl
+            ciBhbmQgYmFja2dyb3VuZCwgYW5kIGBkaXNhYmxlVmVydGljYWxTd2lwZXNgIHNvIHNjcm9sbGlu
+            ZyB0aGUgY2FyZCBkb2Vzbid0IGNsb3NlIHRoZSBhcHAuCgojIyBVSQoKLSAqKlNxdWlkIGJyYW5k
+            IHRoZW1lOioqIGJsYWNrLCBgI0U2RkEzNmAgcHJpbWFyeSBidXR0b25zIHdpdGggYmxhY2sgdGV4
+            dCwgYCNCQzhFRTRgIGxhdmVuZGVyIGFjY2VudHMsIGFuZCBHZWlzdC4KLSAqKkhlYWRlcjoqKiB0
+            aGUgdG9wIGxvZ28gcGlsbCwgIlNxdWlkIOqzteyLnSDsl5Tsp4QiIGJhZGdlLCBhbmQgdHJ1c3Qg
+            bGluZSB3ZXJlIHJlbW92ZWQgc28gdGhlIHdpZGdldCBzdGFydHMgYXQgdGhlIHRvcCBvZiB0aGUg
+            cGFnZS4KLSAqKktvcmVhbiBjb3B5LCBubyBlbW9qaXM6KioKICAtIOyngOqwkSDslYjrgrQg7Lm0
+            65OcOiAi7KeA6rCRIOyXsOqysOydtCDslYgg65CY66m0IgogIC0g7Jew6rKwIOygleuztCDsubTr
+            k5w6ICLslrTrlJTsl5Ag7Jew6rKw65CY64KY7JqUIi4gUm93czog7Iqk7JmRIO2ZlOuptCA9IFNx
+            dWlkIOqzteyLnSDsnITsoK8sIOqyrOyggeqzvCDqsr3roZwgPSBTcXVpZCDqs7Xsi50gQVBJLCDq
+            sbDrnpgg7KGw7ZqMID0gc2Nhbi5zcXVpZHJvdXRlci5jb20uCiAgLSDtlZjri6g6ICJDb2luRWFz
+            eeuKlCDsnpDquIjsnYQg66eh7KeAIOyViuyVhOyalC4g7ISc66qFIOyghOyXkCDsiJjrn4nqs7wg
+            7IiY7IiY66OM66W8IOq8rSDtmZXsnbjtlbQg7KO87IS47JqULiIKCiMjIE90aGVyCgotIGB3aWRn
+            ZXQuaHRtbGAgZm9yd2FyZHMgdG8gYGluZGV4Lmh0bWxgIHdpdGggdGhlIHNhbWUgcXVlcnkuCi0g
+            YGJ1aWxkL2AgaG9sZHMgdGhlIGVzYnVpbGQgY29tbWFuZCBhbmQgcGlubmVkIGRlcHMgZm9yIGBz
+            cXVpZC1tb3VudC5qc2AuCi0gUHJlZmlsbCBpcyB1bmNoYW5nZWQ6IHF1ZXJ5IHBhcmFtcyBwbHVz
+            IHRoZSBjb21wYWN0IHN0YXJ0YXBwIGA4NDUzLVVTREMtNDIxNjEtRVRILTEwMGAuCi0gYG5vZGUg
+            LS10ZXN0IHByZWZpbGwudGVzdC5tanNgOiAyNS8yNSBwYXNzLiBUaGUgaWZyYW1lIHRlc3RzIHdl
+            cmUgcmVwbGFjZWQgd2l0aCBkaXJlY3QtbW91bnQsIHdpZGdldC5odG1sIGZvcndhcmQsIGFuZCB3
+            YWxsZXQtbGluayB0ZXN0cy4KCiMjIE5vdCB2ZXJpZmllZAoKLSBOb3QgeWV0IHRlc3RlZCBvbiBh
+            IHJlYWwgaU9TIG9yIEFuZHJvaWQgVGVsZWdyYW0gY2xpZW50LiBXaGV0aGVyIFRlbGVncmFtIGlP
+            UyBvcGVucyBgbWV0YW1hc2s6Ly9gIGZyb20gYHdpbmRvdy5vcGVuYCBoYXMgdG8gYmUgY2hlY2tl
+            ZCBvbiBhIGRldmljZS4KLSBOb3QgbWVyZ2VkIGFuZCBub3QgZGVwbG95ZWQgdG8gcHJvZHVjdGlv
+            bi4gTmVlZHMgb3duZXIgYXBwcm92YWwuCgo=
+        with:
+          script: |
+            const body = Buffer.from(String(process.env.BODY_B64).replace(/\s+/g, ""), "base64").toString("utf8");
+            if (!body.includes("were removed so the widget starts") || body.includes("신뢰 문구")) {
+              core.setFailed("refusing to write an unexpected description");
+              return;
+            }
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: 2,
+              body,
+            });
