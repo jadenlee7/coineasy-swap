@@ -48,3 +48,10 @@ a { color: inherit; }
 .wc-qr { width: 220px; max-width: 70%; margin: 14px auto 0; background: #fff; border-radius: 12px; padding: 8px; }
 .wc-qr svg { width: 100%; height: auto; display: block; }
 .wc-uri { display: block; width: 100%; margin-top: 10px; background: #000; color: var(--squid-grey); border: 0; box-shadow: inset 0 0 0 1px var(--squid-line); border-radius: 12px; padding: 10px 12px; font: 12px/1.3 var(--font); word-break: break-all; }
+
+.card-primary .lead { margin: 0; color: var(--squid-grey); font-size: 13px; line-height: 1.5; word-break: keep-all; }
+.pill-primary { background: var(--squid-neon); color: #000000; }
+.wallet-links-primary { grid-template-columns: 1fr; gap: 10px; margin-top: 14px; }
+.wallet-links-primary .pill { font-size: 16px; padding: 16px 18px; width: 100%; }
+.card-wc-secondary h2 { font-size: 14px; }
+.card-wc-secondary p { font-size: 12px; }

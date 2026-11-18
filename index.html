@@ -11,7 +11,22 @@
 </head>
 <body>
   <p class="notice">CoinEasy는 자금을 보관하지 않아요. 견적에는 CoinEasy 연동 수수료 0.25%가 포함돼요.</p>
+
+  <section class="card card-primary" id="wallet-primary" hidden>
+    <p class="lead">지갑 앱 안에서 열면 연결과 서명이 지갑에서 바로 진행됩니다.</p>
+    <div class="wallet-links wallet-links-primary">
+      <button type="button" class="pill pill-primary" data-open="okx" data-wallet-browser="1">OKX 앱에서 열기</button>
+      <button type="button" class="pill pill-white" data-open="metamask" data-wallet-browser="1">MetaMask 앱에서 열기</button>
+      <button type="button" class="pill pill-white" data-open="trust" data-wallet-browser="1">Trust 앱에서 열기</button>
+    </div>
+  </section>
+
   <main id="squid-root" class="widget"></main>
+
+  <section class="card card-wc-secondary" id="wallet-wc-secondary" hidden>
+    <h2>WalletConnect</h2>
+    <p>다른 기기에서 연결할 때 쓰세요. Connect에서 WalletConnect를 고르면 QR과 연결 버튼이 나와요.</p>
+  </section>
 
   <section class="card" id="wallet-help">
     <h2>지갑 연결이 안 되면</h2>
