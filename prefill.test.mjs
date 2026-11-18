@@ -402,13 +402,13 @@ test("wallet app links keep the same swap and go through Telegram openLink", () 
   });
   click("metamask");
   click("trust");
-  click("coinbase");
+  click("okx");
   click("browser");
   const full = "https://squidkorea.netlify.app/?fromChain=8453&amount=100";
   assert.deepEqual(opened, [
     "https://metamask.app.link/dapp/squidkorea.netlify.app/?fromChain=8453&amount=100",
     "https://link.trustwallet.com/open_url?coin_id=60&url=" + encodeURIComponent(full),
-    "https://go.cb-w.com/dapp?cb_url=" + encodeURIComponent(full),
+    "https://web3.okx.com/download?deeplink=" + encodeURIComponent("okx://wallet/dapp/url?dappUrl=" + encodeURIComponent(full)),
     full,
   ]);
 });

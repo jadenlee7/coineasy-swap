@@ -32,7 +32,7 @@
   var builders = {
     metamask: function (u) { return "https://metamask.app.link/dapp/" + u.replace(/^https?:\/\//, ""); },
     trust: function (u) { return "https://link.trustwallet.com/open_url?coin_id=60&url=" + encodeURIComponent(u); },
-    coinbase: function (u) { return "https://go.cb-w.com/dapp?cb_url=" + encodeURIComponent(u); },
+    okx: function (u) { return "https://web3.okx.com/download?deeplink=" + encodeURIComponent("okx://wallet/dapp/url?dappUrl=" + encodeURIComponent(u)); },
     browser: function (u) { return u; }
   };
 
