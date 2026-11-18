@@ -42,3 +42,9 @@ a { color: inherit; }
 .facts li:first-child { border-top: 0; }
 .facts span { color: var(--squid-grey); }
 .facts a { color: var(--squid-lavender); text-decoration: none; font-weight: 600; }
+
+.card-wc { position: relative; z-index: 100000; }
+.card-wc[hidden] { display: none !important; }
+.wc-qr { width: 220px; max-width: 70%; margin: 14px auto 0; background: #fff; border-radius: 12px; padding: 8px; }
+.wc-qr svg { width: 100%; height: auto; display: block; }
+.wc-uri { display: block; width: 100%; margin-top: 10px; background: #000; color: var(--squid-grey); border: 0; box-shadow: inset 0 0 0 1px var(--squid-line); border-radius: 12px; padding: 10px 12px; font: 12px/1.3 var(--font); word-break: break-all; }

@@ -122,14 +122,149 @@
     if (https[kind]) openHttps(https[kind]);
   }
 
+  function extractWcUri(url) {
+    if (url == null || url === "") return "";
+    var s = String(url);
+    if (/^wc:/i.test(s)) return s;
+    var found = "";
+    try {
+      var parsed = new URL(s, "https://dummy.invalid");
+      var keys = ["uri", "wc", "deeplink"];
+      for (var i = 0; i < keys.length; i++) {
+        var raw = parsed.searchParams.get(keys[i]) || "";
+        if (!raw) continue;
+        var inner = extractWcUri(raw);
+        if (inner) { found = inner; break; }
+        try {
+          var decoded = decodeURIComponent(raw);
+          inner = extractWcUri(decoded);
+          if (inner) { found = inner; break; }
+        } catch (e) {}
+      }
+    } catch (e2) {}
+    if (found) return found;
+    var match = s.match(/wc:[^\s"'<>]+/i);
+    if (!match) return "";
+    try { return decodeURIComponent(match[0]); } catch (e3) { return match[0]; }
+  }
+
+  function wcUniversalLinks(wcUri) {
+    var enc = encodeURIComponent(wcUri);
+    return {
+      metamask: "https://metamask.app.link/wc?uri=" + enc,
+      trust: "https://link.trustwallet.com/wc?uri=" + enc,
+      okx: "https://www.okx.com/download?deeplink=" + encodeURIComponent("okx://main/wc?uri=" + enc)
+    };
+  }
+
+  var wcPanel = null;
+  var wcCurrentUri = "";
+
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        var done = navigator.clipboard.writeText(text);
+        if (done && typeof done.then === "function") return done.catch(function () { copyTextFallback(text); });
+        return;
+      } catch (e) {}
+    }
+    copyTextFallback(text);
+  }
+
+  function copyTextFallback(text) {
+    var input = document.getElementById("coineasy-wc-uri");
+    if (!input) return;
+    try {
+      input.removeAttribute("disabled");
+      input.removeAttribute("readonly");
+      input.value = text;
+      input.focus();
+      input.select();
+      if (document.execCommand) document.execCommand("copy");
+    } catch (e) {}
+    try { input.setAttribute("readonly", ""); } catch (e2) {}
+  }
+
+  function renderWcQr(box, text) {
+    if (!box) return;
+    box.innerHTML = "";
+    var make = window.qrcode;
+    if (typeof make !== "function") {
+      box.textContent = "QR을 만들지 못했어요. 아래 버튼이나 URI 복사를 사용해 주세요.";
+      return;
+    }
+    try {
+      var qr = make(0, "M");
+      qr.addData(text);
+      qr.make();
+      box.innerHTML = typeof qr.createSvgTag === "function" ? qr.createSvgTag({ scalable: true, margin: 2 }) : "";
+      var svg = box.firstChild;
+      if (svg && svg.style) {
+        svg.style.width = "100%";
+        svg.style.height = "auto";
+        svg.style.background = "#fff";
+        svg.style.borderRadius = "12px";
+        svg.style.display = "block";
+      }
+    } catch (e) {
+      box.textContent = "QR을 만들지 못했어요. 아래 버튼이나 URI 복사를 사용해 주세요.";
+    }
+  }
+
+  function ensureWcPanel() {
+    if (wcPanel && wcPanel.isConnected !== false) return wcPanel;
+    var existing = document.getElementById("coineasy-wc");
+    if (existing) { wcPanel = existing; return wcPanel; }
+    var section = document.createElement("section");
+    section.id = "coineasy-wc";
+    section.className = "card card-wc";
+    section.hidden = true;
+    section.innerHTML = ""
+      + "<h2>WalletConnect</h2>"
+      + "<p>같은 전화에서는 아래 지갑 버튼으로 연결하세요. QR은 다른 기기의 지갑으로 스캔할 수 있어요. 지갑에서 승인한 뒤 이 화면으로 돌아와 주세요.</p>"
+      + '<div class="wc-qr" id="coineasy-wc-qr" aria-hidden="false"></div>'
+      + '<input id="coineasy-wc-uri" class="wc-uri" readonly value="">'
+      + '<div class="wallet-links">'
+      + '<button type="button" class="pill pill-white" data-wc="metamask">MetaMask로 연결</button>'
+      + '<button type="button" class="pill pill-white" data-wc="okx">OKX로 연결</button>'
+      + '<button type="button" class="pill pill-white" data-wc="trust">Trust로 연결</button>'
+      + '<button type="button" class="pill pill-ghost" data-wc-copy>URI 복사</button>'
+      + '<button type="button" class="pill pill-ghost" data-wc-close>닫기</button>'
+      + "</div>";
+    var help = document.getElementById("wallet-help");
+    if (help && help.parentNode) help.parentNode.insertBefore(section, help);
+    else if (document.body) document.body.appendChild(section);
+    wcPanel = section;
+    return wcPanel;
+  }
+
+  function showWcPanel(uri) {
+    if (!inTelegram() || !uri) return;
+    var wcUri = extractWcUri(uri) || (/^wc:/i.test(uri) ? uri : "");
+    if (!wcUri) return;
+    wcCurrentUri = wcUri;
+    var panel = ensureWcPanel();
+    if (!panel) return;
+    panel.hidden = false;
+    var input = document.getElementById("coineasy-wc-uri");
+    if (input) input.value = wcUri;
+    renderWcQr(document.getElementById("coineasy-wc-qr"), wcUri);
+    try { panel.scrollIntoView({ block: "center" }); } catch (e) {}
+  }
+
+  function hideWcPanel() {
+    if (wcPanel) wcPanel.hidden = true;
+  }
+
   var originalOpen = window.open;
   window.open = function (url, target, features) {
     if (!inTelegram() || url == null || url === "") {
       return originalOpen ? originalOpen.call(window, url, target, features) : null;
     }
     var href = String(url);
-    if (/^(okx|metamask|trust|wc):/i.test(href)) {
-      navigateNative(href);
+    var wcUri = extractWcUri(href);
+    if (wcUri) {
+      showWcPanel(wcUri);
       return null;
     }
     if (/^https?:\/\//i.test(href)) {
@@ -140,6 +275,26 @@
   };
 
   document.addEventListener("click", function (event) {
+    var wcTarget = event.target && event.target.closest ? event.target.closest("[data-wc],[data-wc-copy],[data-wc-close]") : null;
+    if (wcTarget && wcCurrentUri) {
+      if (wcTarget.hasAttribute("data-wc-close")) {
+        event.preventDefault();
+        hideWcPanel();
+        return;
+      }
+      if (wcTarget.hasAttribute("data-wc-copy")) {
+        event.preventDefault();
+        copyText(wcCurrentUri);
+        return;
+      }
+      var wcKind = wcTarget.getAttribute("data-wc");
+      var links = wcUniversalLinks(wcCurrentUri);
+      if (wcKind && links[wcKind]) {
+        event.preventDefault();
+        openHttps(links[wcKind]);
+        return;
+      }
+    }
     var target = event.target && event.target.closest ? event.target.closest("[data-open],[data-external]") : null;
     if (!target) return;
     var kind = target.getAttribute("data-open");
@@ -179,6 +334,36 @@
       }
     }
     return found;
+  }
+
+  function harvestWcUri(root) {
+    if (!inTelegram()) return;
+    var scope = root && root.querySelectorAll ? root : document;
+    var nodes = [];
+    try { nodes = scope.querySelectorAll ? scope.querySelectorAll("wcm-qrcode, w3m-qrcode") : []; } catch (e) {}
+    for (var i = 0; i < nodes.length; i++) {
+      var uri = nodes[i].uri || (nodes[i].getAttribute && (nodes[i].getAttribute("uri") || nodes[i].getAttribute("data-uri"))) || "";
+      if (uri) showWcPanel(uri);
+    }
+  }
+
+  function kickRelayer() {
+    try { window.dispatchEvent(new Event("focus")); } catch (e) {}
+  }
+
+  try {
+    window.addEventListener("pageshow", kickRelayer);
+    document.addEventListener("visibilitychange", function () {
+      if (!document.hidden) kickRelayer();
+    });
+  } catch (e) {}
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    var originalWrite = navigator.clipboard.writeText.bind(navigator.clipboard);
+    navigator.clipboard.writeText = function (text) {
+      if (inTelegram() && extractWcUri(text)) showWcPanel(text);
+      return originalWrite(text);
+    };
   }
 
   function scanWalletList() {
@@ -240,13 +425,14 @@
 
   if (window.MutationObserver) {
     try {
-      new MutationObserver(function () { scanWalletList(); }).observe(
+      new MutationObserver(function () { scanWalletList(); harvestWcUri(document); }).observe(
         document.documentElement || document.body,
         { childList: true, subtree: true }
       );
     } catch (e) {}
   }
   scanWalletList();
+  harvestWcUri(document);
 
   if (window.ethereum && !inTelegram()) {
     var help = document.getElementById("wallet-help");
