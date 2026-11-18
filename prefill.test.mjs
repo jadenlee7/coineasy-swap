@@ -425,16 +425,80 @@ function loadPage(options = {}) {
   const walletInput = {
     parentElement: { parentElement: { querySelector: (sel) => sel === "ul" ? walletList : null } },
   };
+  const elementsById = { "wallet-help": help };
+  const bodyChildren = [];
+  function recordId(el) { if (el && el.id) elementsById[el.id] = el; }
+  function makeEl(tag) {
+    const el = {
+      tagName: String(tag).toUpperCase(),
+      id: "",
+      className: "",
+      hidden: false,
+      _html: "",
+      textContent: "",
+      value: "",
+      style: {},
+      children: [],
+      firstChild: null,
+      parentNode: null,
+      isConnected: true,
+      attrs: {},
+      setAttribute(k, v) { this.attrs[k] = v; if (k === "id") { this.id = v; recordId(this); } },
+      getAttribute(k) { return this.attrs[k] || (k === "id" ? this.id : ""); },
+      hasAttribute(k) { return Object.prototype.hasOwnProperty.call(this.attrs, k) || (k === "id" && !!this.id); },
+      appendChild(child) { this.children.push(child); child.parentNode = this; this.firstChild = this.children[0]; return child; },
+      insertBefore(child, _ref) { this.children.unshift(child); child.parentNode = this; this.firstChild = this.children[0]; return child; },
+      removeAttribute(k) { delete this.attrs[k]; },
+      focus() {},
+      select() {},
+      scrollIntoView() {},
+      querySelector(sel) {
+        if (sel && sel.startsWith("#")) return elementsById[sel.slice(1)] || null;
+        return null;
+      },
+    };
+    Object.defineProperty(el, "id", {
+      get() { return this._id || ""; },
+      set(v) { this._id = v; recordId(this); },
+      configurable: true,
+    });
+    Object.defineProperty(el, "innerHTML", {
+      get() { return this._html || ""; },
+      set(v) {
+        this._html = String(v);
+        for (const match of this._html.matchAll(/id="([^"]+)"/g)) {
+          if (!elementsById[match[1]]) {
+            const child = makeEl("div");
+            child.id = match[1];
+            elementsById[match[1]] = child;
+          }
+        }
+      },
+      configurable: true,
+    });
+    return el;
+  }
+  const body = makeEl("body");
+  body.appendChild = function (child) { bodyChildren.push(child); child.parentNode = body; return child; };
+  body.insertBefore = function (child) { bodyChildren.unshift(child); child.parentNode = body; return child; };
+  const helpParent = { insertBefore(child) { bodyChildren.unshift(child); child.parentNode = this; return child; } };
+  help.parentNode = helpParent;
   const document = {
     hidden: hidden.value,
     documentElement: { _dummy: true },
+    body,
     addEventListener: (type, fn, opts) => {
       const key = type + ((opts === true || (opts && opts.capture)) ? ".capture" : "");
       listeners[key] = fn;
     },
-    getElementById: () => help,
+    getElementById: (id) => elementsById[id] || null,
     querySelectorAll: (sel) => sel === 'input[placeholder="Select your wallet"]' ? [walletInput] : [],
+    querySelector: (sel) => (sel && sel.startsWith("#") ? (elementsById[sel.slice(1)] || null) : null),
+    createElement: (tag) => makeEl(tag),
+    execCommand: (cmd) => { listeners.execCommand = cmd; return true; },
   };
+  document.elementsById = elementsById;
+  document.bodyChildren = bodyChildren;
   Object.defineProperty(document, "hidden", { get() { return hidden.value; }, set(v) { hidden.value = v; } });
   if (options.withObserver) {
     window.MutationObserver = class {
@@ -536,9 +600,60 @@ test("inside Telegram, injected wallet rows are hidden and MetaMask is routed to
 
 test("inside Telegram, window.open https links go through openLink so WalletConnect can hand off", () => {
   const env = loadPage({ forbidOpen: true });
-  const ret = env.window.open("https://example-wallet.app/wc?uri=abc", "_blank");
+  const ret = env.window.open("https://example-wallet.app/open", "_blank");
   assert.equal(ret, null);
-  assert.deepEqual(env.opened, [{ url: "https://example-wallet.app/wc?uri=abc", opts: { try_instant_view: false } }]);
-  env.window.open("wc:abc-session");
-  assert.deepEqual(env.assigned, ["wc:abc-session"]);
+  assert.deepEqual(env.opened, [{ url: "https://example-wallet.app/open", opts: { try_instant_view: false } }]);
+});
+
+test("inside Telegram, a WalletConnect URI opens a QR and copy panel instead of a custom scheme", () => {
+  const env = loadPage({ forbidOpen: true });
+  const wcUri = "wc:abcd1234-5678-90ef-abcd-1234567890ab@2?relay-protocol=irn&symKey=00";
+  assert.equal(env.window.open("metamask://wc?uri=" + encodeURIComponent(wcUri)), null);
+  assert.deepEqual(env.assigned, []);
+  const panel = env.document.getElementById("coineasy-wc");
+  assert.ok(panel);
+  assert.equal(panel.hidden, false);
+  assert.equal(env.document.getElementById("coineasy-wc-uri").value, wcUri);
+  assert.match(panel.innerHTML, /WalletConnect/);
+  assert.match(panel.innerHTML, /URI 복사/);
+  assert.match(panel.innerHTML, /MetaMask로 연결/);
+  assert.match(panel.innerHTML, /OKX로 연결/);
+  assert.match(panel.innerHTML, /Trust로 연결/);
+});
+
+test("WalletConnect panel buttons open official https universal links through openLink", () => {
+  const env = loadPage({ forbidOpen: true });
+  const wcUri = "wc:abcd1234-5678-90ef-abcd-1234567890ab@2?relay-protocol=irn&symKey=00";
+  env.window.open("https://metamask.app.link/wc?uri=" + encodeURIComponent(wcUri));
+  assert.deepEqual(env.opened, []);
+  const clickWc = (attr, value) => env.listeners.click({
+    preventDefault() {},
+    target: {
+      closest: (sel) => {
+        if (sel.includes("data-wc")) {
+          return {
+            hasAttribute: (name) => name === attr,
+            getAttribute: (name) => (name === "data-wc" ? value : ""),
+          };
+        }
+        return null;
+      },
+    },
+  });
+  clickWc("data-wc", "metamask");
+  clickWc("data-wc", "okx");
+  clickWc("data-wc", "trust");
+  const enc = encodeURIComponent(wcUri);
+  assert.deepEqual(env.opened, [
+    { url: "https://metamask.app.link/wc?uri=" + enc, opts: { try_instant_view: false } },
+    { url: "https://www.okx.com/download?deeplink=" + encodeURIComponent("okx://main/wc?uri=" + enc), opts: { try_instant_view: false } },
+    { url: "https://link.trustwallet.com/wc?uri=" + enc, opts: { try_instant_view: false } },
+  ]);
+});
+
+test("index.html loads the QR helper before page.js", () => {
+  const html = readFileSync(new URL("./index.html", import.meta.url), "utf8");
+  const qrAt = html.indexOf('src="qrcode-lite.js"');
+  const pageAt = html.indexOf('src="page.js"');
+  assert.ok(qrAt > -1 && pageAt > qrAt);
 });
