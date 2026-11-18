@@ -6,7 +6,7 @@ CoinEasy x Squid swap, a Telegram Mini App (`t.me/Squid_quiz_bot/swap`).
 
 - `index.html` mounts Squid's official widget (`@0xsquid/widget` 8.0.0) directly in the page. Quotes and routes come from Squid's API (`v2.api.squidrouter.com`); transactions can be tracked on `scan.squidrouter.com`.
 - No iframe. Squid's wallet code (WalletConnect modal and deep links) checks `window.Telegram` and whether it runs in a frame. In the old iframe it could not see Telegram and tried to navigate the top window, so wallet hand-off failed in Telegram.
-- `page.js`: Telegram chrome (black header, vertical swipe off) and "open in wallet app" fallbacks (MetaMask, Trust, OKX, browser) through `Telegram.WebApp.openLink`, keeping the same prefill.
+- `page.js`: Telegram chrome (black header, vertical swipe off) and "open in wallet app" fallbacks (MetaMask, Trust, OKX, browser). Inside Telegram it first tries the official native scheme (`metamask://`, `okx://`, `trust://`) via `location.assign`, then falls back to the https universal link through `Telegram.WebApp.openLink` if the app does not open. In the widget's "Select your wallet" list, injected options (MetaMask, Coinbase Wallet, Browser Extension) are hidden in Telegram; WalletConnect hand-off uses the same `openLink` path. The same prefill is kept.
 - `page.css`: page styling after squid.inc (black, neon `#E6FA36`, lavender `#BC8EE4`, Geist).
 - `widget.html`: old entry point, forwards to `index.html` with the same query.
 - `squid-mount.js`: built from `mount-entry.js` (`cd build && npm install && sh build.sh`).

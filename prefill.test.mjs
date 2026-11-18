@@ -381,34 +381,164 @@ test("the mounted widget bundle does not repeat the integrator id", () => {
   assert.equal(page.includes("console."), false);
 });
 
-test("wallet app links keep the same swap and go through Telegram openLink", () => {
+function loadPage(options = {}) {
   const page = readFileSync(new URL("./page.js", import.meta.url), "utf8");
   const opened = [];
+  const assigned = [];
+  const timers = [];
   const listeners = {};
   const help = { hidden: false };
+  const hidden = { value: options.hidden ?? false };
+  const location = {
+    origin: "https://squidkorea.netlify.app",
+    pathname: "/",
+    search: "?fromChain=8453&amount=100",
+    assign(url) { assigned.push(url); },
+  };
+  Object.defineProperty(location, "href", {
+    get() { return location.origin + location.pathname + location.search; },
+    set(url) { assigned.push(url); },
+  });
+  const platform = options.platform === undefined ? "ios" : options.platform;
   const window = {
-    location: { origin: "https://squidkorea.netlify.app", pathname: "/", search: "?fromChain=8453&amount=100" },
-    Telegram: { WebApp: { platform: "ios", openLink: (url) => opened.push(url) } },
-    open: () => { throw new Error("must use openLink in Telegram"); },
+    location,
+    Telegram: platform == null ? undefined : { WebApp: {
+      platform,
+      openLink: (url, opts) => opened.push({ url, opts }),
+    } },
+    open: (url) => {
+      if (options.forbidOpen) throw new Error("must not use window.open in Telegram");
+      opened.push({ url, opts: "window.open" });
+      return null;
+    },
+    setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; },
+    addEventListener: (type, fn) => { (listeners["win:" + type] ||= []).push(fn); },
+  };
+  const walletRows = options.walletRows || [];
+  const walletList = {
+    children: walletRows,
+    contains(node) {
+      return walletRows.some((row) => row === node || row.titleEl === node);
+    },
+    querySelector: () => null,
+  };
+  const walletInput = {
+    parentElement: { parentElement: { querySelector: (sel) => sel === "ul" ? walletList : null } },
   };
   const document = {
-    addEventListener: (type, fn) => { listeners[type] = fn; },
+    hidden: hidden.value,
+    documentElement: { _dummy: true },
+    addEventListener: (type, fn, opts) => {
+      const key = type + ((opts === true || (opts && opts.capture)) ? ".capture" : "");
+      listeners[key] = fn;
+    },
     getElementById: () => help,
+    querySelectorAll: (sel) => sel === 'input[placeholder="Select your wallet"]' ? [walletInput] : [],
   };
+  Object.defineProperty(document, "hidden", { get() { return hidden.value; }, set(v) { hidden.value = v; } });
+  if (options.withObserver) {
+    window.MutationObserver = class {
+      constructor(fn) { this.fn = fn; }
+      observe() { this.fn(); }
+    };
+  }
   new Function("window", "document", page)(window, document);
-  const click = (kind) => listeners.click({
+  const clickKind = (kind) => listeners.click({
     preventDefault() {},
     target: { closest: () => ({ getAttribute: () => kind, hasAttribute: () => false }) },
   });
-  click("metamask");
-  click("trust");
-  click("okx");
-  click("browser");
   const full = "https://squidkorea.netlify.app/?fromChain=8453&amount=100";
-  assert.deepEqual(opened, [
-    "https://metamask.app.link/dapp/squidkorea.netlify.app/?fromChain=8453&amount=100",
-    "https://link.trustwallet.com/open_url?coin_id=60&url=" + encodeURIComponent(full),
-    "https://web3.okx.com/download?deeplink=" + encodeURIComponent("okx://wallet/dapp/url?dappUrl=" + encodeURIComponent(full)),
-    full,
+  return { opened, assigned, timers, listeners, help, hidden, walletRows, walletList, clickKind, full, window, document, runTimers() { timers.splice(0).forEach((t) => t.fn()); } };
+}
+
+test("inside Telegram, wallet buttons try the native app scheme first", () => {
+  const { clickKind, assigned, opened, full } = loadPage({ forbidOpen: true, hidden: false });
+  clickKind("metamask");
+  clickKind("trust");
+  clickKind("okx");
+  clickKind("browser");
+  assert.deepEqual(assigned, [
+    "metamask://dapp/squidkorea.netlify.app/?fromChain=8453&amount=100",
+    "trust://open_url?coin_id=60&url=" + encodeURIComponent(full),
+    "okx://wallet/dapp/url?dappUrl=" + encodeURIComponent(full),
   ]);
+  assert.deepEqual(opened, [{ url: full, opts: { try_instant_view: false } }]);
+});
+
+test("if the native app does not open, Telegram falls back to the https universal link", () => {
+  const env = loadPage({ forbidOpen: true, hidden: false });
+  env.clickKind("okx");
+  env.clickKind("metamask");
+  env.clickKind("trust");
+  assert.equal(env.opened.length, 0);
+  env.runTimers();
+  const full = env.full;
+  assert.deepEqual(env.opened, [
+    { url: "https://web3.okx.com/download?deeplink=" + encodeURIComponent("okx://wallet/dapp/url?dappUrl=" + encodeURIComponent(full)), opts: { try_instant_view: false } },
+    { url: "https://metamask.app.link/dapp/squidkorea.netlify.app/?fromChain=8453&amount=100", opts: { try_instant_view: false } },
+    { url: "https://link.trustwallet.com/open_url?coin_id=60&url=" + encodeURIComponent(full), opts: { try_instant_view: false } },
+  ]);
+  env.timers.forEach((t) => assert.equal(t.ms, 1500));
+});
+
+test("the https fallback is skipped when the wallet app has already taken over", () => {
+  const env = loadPage({ forbidOpen: true, hidden: true });
+  env.clickKind("okx");
+  env.runTimers();
+  assert.deepEqual(env.assigned, ["okx://wallet/dapp/url?dappUrl=" + encodeURIComponent(env.full)]);
+  assert.deepEqual(env.opened, []);
+});
+
+test("outside Telegram, wallet buttons use the https universal link", () => {
+  const env = loadPage({ platform: "unknown" });
+  env.clickKind("metamask");
+  env.clickKind("trust");
+  env.clickKind("okx");
+  env.clickKind("browser");
+  assert.deepEqual(env.assigned, []);
+  assert.deepEqual(env.opened.map((x) => x.url), [
+    "https://metamask.app.link/dapp/squidkorea.netlify.app/?fromChain=8453&amount=100",
+    "https://link.trustwallet.com/open_url?coin_id=60&url=" + encodeURIComponent(env.full),
+    "https://web3.okx.com/download?deeplink=" + encodeURIComponent("okx://wallet/dapp/url?dappUrl=" + encodeURIComponent(env.full)),
+    env.full,
+  ]);
+  env.opened.forEach((x) => assert.equal(x.opts, "window.open"));
+});
+
+test("inside Telegram, injected wallet rows are hidden and MetaMask is routed to a native link", () => {
+  const rows = ["WalletConnect", "MetaMask", "Coinbase Wallet", "Browser Extension", "OKX Wallet"].map((name) => {
+    const titleEl = { textContent: name, parentElement: null };
+    const row = {
+      textContent: name,
+      style: { display: "" },
+      attrs: {},
+      titleEl,
+      querySelector: (sel) => sel === ".tw-text-grey-300" ? titleEl : null,
+      setAttribute(k, v) { this.attrs[k] = v; },
+      parentElement: null,
+    };
+    titleEl.parentElement = row;
+    return row;
+  });
+  const env = loadPage({ forbidOpen: true, hidden: false, walletRows: rows, withObserver: true });
+  assert.equal(rows[0].style.display, "");
+  assert.equal(rows[1].style.display, "none");
+  assert.equal(rows[2].style.display, "none");
+  assert.equal(rows[3].style.display, "none");
+  assert.equal(rows[4].style.display, "");
+  assert.equal(rows[1].attrs["data-coineasy-hidden"], "1");
+  const ev = { prevented: false, stopped: false, preventDefault() { this.prevented = true; }, stopPropagation() { this.stopped = true; }, target: rows[1].titleEl };
+  env.listeners["click.capture"](ev);
+  assert.equal(ev.prevented, true);
+  assert.equal(ev.stopped, true);
+  assert.deepEqual(env.assigned, ["metamask://dapp/squidkorea.netlify.app/?fromChain=8453&amount=100"]);
+});
+
+test("inside Telegram, window.open https links go through openLink so WalletConnect can hand off", () => {
+  const env = loadPage({ forbidOpen: true });
+  const ret = env.window.open("https://example-wallet.app/wc?uri=abc", "_blank");
+  assert.equal(ret, null);
+  assert.deepEqual(env.opened, [{ url: "https://example-wallet.app/wc?uri=abc", opts: { try_instant_view: false } }]);
+  env.window.open("wc:abc-session");
+  assert.deepEqual(env.assigned, ["wc:abc-session"]);
 });
