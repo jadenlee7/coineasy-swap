@@ -28,6 +28,43 @@
     return inTelegram() ? webApp() : null;
   }
 
+  function inWalletBrowser() {
+    return !!(window.ethereum && !inTelegram());
+  }
+
+  function isMobileUi() {
+    var tg = getTg();
+    if (tg) {
+      var platform = String(tg.platform || "").toLowerCase();
+      if (platform === "ios" || platform === "android") return true;
+      if (
+        platform === "tdesktop" ||
+        platform === "macos" ||
+        platform === "linux" ||
+        platform === "web" ||
+        platform === "weba"
+      ) {
+        return false;
+      }
+    }
+    try {
+      return !!(window.matchMedia && window.matchMedia("(max-width: 640px)").matches);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function applyWalletLayout() {
+    var inWallet = inWalletBrowser();
+    var mobile = isMobileUi();
+    var primary = document.getElementById("wallet-primary");
+    var secondary = document.getElementById("wallet-wc-secondary");
+    var help = document.getElementById("wallet-help");
+    if (primary) primary.hidden = inWallet || !mobile;
+    if (secondary) secondary.hidden = inWallet || !mobile;
+    if (help) help.hidden = inWallet || mobile;
+  }
+
   var tgAtBoot = getTg();
   if (tgAtBoot) {
     try { if (tgAtBoot.setHeaderColor) tgAtBoot.setHeaderColor("#000000"); } catch (e) {}
@@ -120,6 +157,24 @@
       return;
     }
     if (https[kind]) openHttps(https[kind]);
+  }
+
+  function openInWalletBrowser(kind) {
+    var https = httpsLinks(swapUrl());
+    var url = https[kind];
+    if (!url) return;
+    var tg = getTg();
+    if (tg && tg.openLink) {
+      try {
+        tg.openLink(url, { try_instant_view: false });
+        return;
+      } catch (e) {
+        try { tg.openLink(url); return; } catch (e2) {}
+      }
+    }
+    try { window.location.assign(url); } catch (e3) {
+      window.location.href = url;
+    }
   }
 
   function extractWcUri(url) {
@@ -231,8 +286,8 @@
       + '<button type="button" class="pill pill-ghost" data-wc-copy>URI 복사</button>'
       + '<button type="button" class="pill pill-ghost" data-wc-close>닫기</button>'
       + "</div>";
-    var help = document.getElementById("wallet-help");
-    if (help && help.parentNode) help.parentNode.insertBefore(section, help);
+    var anchor = document.getElementById("wallet-wc-secondary") || document.getElementById("wallet-help");
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(section, anchor);
     else if (document.body) document.body.appendChild(section);
     wcPanel = section;
     return wcPanel;
@@ -300,7 +355,11 @@
     var kind = target.getAttribute("data-open");
     if (kind === "metamask" || kind === "trust" || kind === "okx" || kind === "browser") {
       event.preventDefault();
-      openWallet(kind);
+      if (target.getAttribute("data-wallet-browser") === "1" && kind !== "browser") {
+        openInWalletBrowser(kind);
+      } else {
+        openWallet(kind);
+      }
       return;
     }
     if (target.hasAttribute("data-external") && target.href) {
@@ -434,8 +493,7 @@
   scanWalletList();
   harvestWcUri(document);
 
-  if (window.ethereum && !inTelegram()) {
-    var help = document.getElementById("wallet-help");
-    if (help) help.hidden = true;
-  }
+  applyWalletLayout();
+  try { window.addEventListener("resize", applyWalletLayout); } catch (e) {}
+  try { window.addEventListener("orientationchange", applyWalletLayout); } catch (e) {}
 })();

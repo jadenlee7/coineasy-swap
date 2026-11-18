@@ -324,7 +324,7 @@ test("a short custody and fee notice sits directly above the widget", () => {
   const noticeAt = html.indexOf(marker);
   assert.equal((html.match(/class="notice"/g) || []).length, 1);
   assert.ok(noticeAt > 0);
-  assert.match(html.slice(noticeAt + marker.length), /^\s*<main id="squid-root"/);
+  assert.match(html.slice(noticeAt + marker.length), /^\s*(<section class="card card-primary"[\s\S]*?<\/section>\s*)?<main id="squid-root"/);
   for (const word of ["공식", "안전", "수익", "이자", "예치", "APY", "APR", "yield"]) {
     assert.equal(notice.toLowerCase().includes(word.toLowerCase()), false, word);
   }
@@ -388,6 +388,8 @@ function loadPage(options = {}) {
   const timers = [];
   const listeners = {};
   const help = { hidden: false };
+  const primary = { hidden: true };
+  const secondary = { hidden: true };
   const hidden = { value: options.hidden ?? false };
   const location = {
     origin: "https://squidkorea.netlify.app",
@@ -413,7 +415,9 @@ function loadPage(options = {}) {
     },
     setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; },
     addEventListener: (type, fn) => { (listeners["win:" + type] ||= []).push(fn); },
+    matchMedia: (query) => ({ matches: options.mobileWidth === true && String(query).includes("640") }),
   };
+  if (options.ethereum) window.ethereum = options.ethereum;
   const walletRows = options.walletRows || [];
   const walletList = {
     children: walletRows,
@@ -425,7 +429,7 @@ function loadPage(options = {}) {
   const walletInput = {
     parentElement: { parentElement: { querySelector: (sel) => sel === "ul" ? walletList : null } },
   };
-  const elementsById = { "wallet-help": help };
+  const elementsById = { "wallet-help": help, "wallet-primary": primary, "wallet-wc-secondary": secondary };
   const bodyChildren = [];
   function recordId(el) { if (el && el.id) elementsById[el.id] = el; }
   function makeEl(tag) {
@@ -511,8 +515,17 @@ function loadPage(options = {}) {
     preventDefault() {},
     target: { closest: () => ({ getAttribute: () => kind, hasAttribute: () => false }) },
   });
+  const clickPrimary = (kind) => listeners.click({
+    preventDefault() {},
+    target: {
+      closest: () => ({
+        getAttribute: (name) => (name === "data-open" ? kind : name === "data-wallet-browser" ? "1" : ""),
+        hasAttribute: (name) => name === "data-wallet-browser" || name === "data-open",
+      }),
+    },
+  });
   const full = "https://squidkorea.netlify.app/?fromChain=8453&amount=100";
-  return { opened, assigned, timers, listeners, help, hidden, walletRows, walletList, clickKind, full, window, document, runTimers() { timers.splice(0).forEach((t) => t.fn()); } };
+  return { opened, assigned, timers, listeners, help, primary, secondary, hidden, walletRows, walletList, clickKind, clickPrimary, full, window, document, runTimers() { timers.splice(0).forEach((t) => t.fn()); } };
 }
 
 test("inside Telegram, wallet buttons try the native app scheme first", () => {
@@ -656,4 +669,86 @@ test("index.html loads the QR helper before page.js", () => {
   const qrAt = html.indexOf('src="qrcode-lite.js"');
   const pageAt = html.indexOf('src="page.js"');
   assert.ok(qrAt > -1 && pageAt > qrAt);
+});
+
+test("mobile markup puts OKX first and keeps a short open-in-wallet line", () => {
+  const html = readFileSync(new URL("./index.html", import.meta.url), "utf8");
+  const start = html.indexOf('id="wallet-primary"');
+  const end = html.indexOf("</section>", start);
+  const block = html.slice(start, end);
+  assert.ok(start > 0 && start < html.indexOf('id="squid-root"'));
+  assert.match(block, /지갑 앱 안에서 열면 연결과 서명이 지갑에서 바로 진행됩니다/);
+  assert.equal(/[\u{1F300}-\u{1FAFF}]/u.test(block), false);
+  const order = ["OKX 앱에서 열기", "MetaMask 앱에서 열기", "Trust 앱에서 열기"].map((label) => block.indexOf(label));
+  assert.ok(order[0] > 0 && order[0] < order[1] && order[1] < order[2]);
+  assert.match(block, /data-open="okx"[^>]*data-wallet-browser="1"/);
+  assert.match(html, /id="wallet-wc-secondary"/);
+  assert.match(html, /id="wallet-help"/);
+});
+
+test("Telegram iOS shows open-in-wallet first and keeps the desktop help hidden", () => {
+  const env = loadPage({ platform: "ios" });
+  assert.equal(env.primary.hidden, false);
+  assert.equal(env.secondary.hidden, false);
+  assert.equal(env.help.hidden, true);
+});
+
+test("Telegram desktop keeps the existing help card and hides the mobile buttons", () => {
+  const env = loadPage({ platform: "tdesktop" });
+  assert.equal(env.primary.hidden, true);
+  assert.equal(env.secondary.hidden, true);
+  assert.equal(env.help.hidden, false);
+});
+
+test("a narrow phone outside Telegram also shows the open-in-wallet buttons", () => {
+  const env = loadPage({ platform: "unknown", mobileWidth: true });
+  assert.equal(env.primary.hidden, false);
+  assert.equal(env.secondary.hidden, false);
+  assert.equal(env.help.hidden, true);
+});
+
+test("a wide desktop outside Telegram keeps the existing layout", () => {
+  const env = loadPage({ platform: "unknown" });
+  assert.equal(env.primary.hidden, true);
+  assert.equal(env.secondary.hidden, true);
+  assert.equal(env.help.hidden, false);
+});
+
+test("already inside a wallet browser hides the open-in-wallet buttons", () => {
+  const env = loadPage({ platform: "unknown", mobileWidth: true, ethereum: {} });
+  assert.equal(env.primary.hidden, true);
+  assert.equal(env.secondary.hidden, true);
+  assert.equal(env.help.hidden, true);
+});
+
+test("injected provider inside Telegram still shows the open-in-wallet buttons", () => {
+  const env = loadPage({ platform: "ios", ethereum: {} });
+  assert.equal(env.primary.hidden, false);
+  assert.equal(env.help.hidden, true);
+});
+
+test("primary wallet buttons open official https links through openLink in Telegram", () => {
+  const env = loadPage({ platform: "ios", forbidOpen: true });
+  env.clickPrimary("okx");
+  env.clickPrimary("metamask");
+  env.clickPrimary("trust");
+  assert.deepEqual(env.assigned, []);
+  assert.deepEqual(env.opened, [
+    { url: "https://web3.okx.com/download?deeplink=" + encodeURIComponent("okx://wallet/dapp/url?dappUrl=" + encodeURIComponent(env.full)), opts: { try_instant_view: false } },
+    { url: "https://metamask.app.link/dapp/squidkorea.netlify.app/?fromChain=8453&amount=100", opts: { try_instant_view: false } },
+    { url: "https://link.trustwallet.com/open_url?coin_id=60&url=" + encodeURIComponent(env.full), opts: { try_instant_view: false } },
+  ]);
+});
+
+test("primary wallet buttons use location outside Telegram instead of a new tab", () => {
+  const env = loadPage({ platform: "unknown", mobileWidth: true, forbidOpen: true });
+  env.clickPrimary("okx");
+  env.clickPrimary("metamask");
+  env.clickPrimary("trust");
+  assert.deepEqual(env.opened, []);
+  assert.deepEqual(env.assigned, [
+    "https://web3.okx.com/download?deeplink=" + encodeURIComponent("okx://wallet/dapp/url?dappUrl=" + encodeURIComponent(env.full)),
+    "https://metamask.app.link/dapp/squidkorea.netlify.app/?fromChain=8453&amount=100",
+    "https://link.trustwallet.com/open_url?coin_id=60&url=" + encodeURIComponent(env.full),
+  ]);
 });
