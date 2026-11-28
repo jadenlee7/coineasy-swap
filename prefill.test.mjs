@@ -657,3 +657,112 @@ test("index.html loads the QR helper before page.js", () => {
   const pageAt = html.indexOf('src="page.js"');
   assert.ok(qrAt > -1 && pageAt > qrAt);
 });
+
+test("listing buttons prefill EVM destination token contracts on allowlisted and other EVM chains", () => {
+  const zoraBase = "0x1111111111111111111111111111111111111111";
+  const bnbMixed = "0xAbCdEf0123456789aBcDeF0123456789AbCdEf01";
+  const baseBoot = widgetBoot(
+    `?fromChain=8453&fromToken=0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913&toChain=8453&toToken=${zoraBase}&amount=5`
+  );
+  assert.equal(baseBoot.payload.config.loadPreviousStateFromLocalStorage, false);
+  assert.deepEqual(baseBoot.payload.config.initialAssets, {
+    from: BASE_USDC,
+    to: { address: zoraBase, chainId: "8453" },
+  });
+  assert.equal(baseBoot.payload.amount, "5");
+
+  const bnb = resolve(
+    `?fromChain=8453&fromToken=USDC&toChain=56&toToken=${bnbMixed}&amount=5`
+  );
+  assert.deepEqual(bnb, {
+    from: BASE_USDC,
+    to: { address: bnbMixed.toLowerCase(), chainId: "56" },
+    amount: "5",
+  });
+});
+
+test("listing buttons prefill Solana, Sui, Cosmos, XRPL, and Stellar destination addresses with exact required case", () => {
+  const antMint = "GpzTUBLEPTFL6S8L8rDY2ABXS9FaXq13cy8UtdYppump";
+  for (const solChain of ["solana-mainnet-beta", "solana", "SOL"]) {
+    const res = resolve(
+      `?fromChain=8453&fromToken=USDC&toChain=${solChain}&toToken=${antMint}&amount=5`
+    );
+    assert.deepEqual(res, {
+      from: BASE_USDC,
+      to: { address: antMint, chainId: "solana-mainnet-beta" },
+      amount: "5",
+    });
+  }
+
+  const suiCoin = "0x66EE42c6126957171da98e382fc27e1b03f4d37b1520e56e69752b22af10b56c::mbtc::MBTC";
+  assert.deepEqual(
+    resolve(`?fromChain=8453&fromToken=USDC&toChain=sui-mainnet&toToken=${suiCoin}&amount=5`),
+    {
+      from: BASE_USDC,
+      to: {
+        address: "0x66ee42c6126957171da98e382fc27e1b03f4d37b1520e56e69752b22af10b56c::mbtc::MBTC",
+        chainId: "sui-mainnet",
+      },
+      amount: "5",
+    }
+  );
+
+  const ibcDenom = "ibc/8feFae6aecf6e2a255585617f781f35a8d5709a545a804482a261c0c9548a9d3";
+  assert.deepEqual(
+    resolve(`?fromChain=42161&fromToken=USDC&toChain=osmosis-1&toToken=${ibcDenom}&amount=5`),
+    {
+      from: ARB_USDC,
+      to: { address: "ibc/" + ibcDenom.slice(4).toUpperCase(), chainId: "osmosis-1" },
+      amount: "5",
+    }
+  );
+
+  const xrplToken = "5745544800000000000000000000000000000000.rfmS3zqrQrka8wVyhXifEeyTwe8AMz2Yhw";
+  assert.deepEqual(
+    resolve(`?fromChain=8453&fromToken=USDC&toChain=xrpl-mainnet&toToken=${xrplToken}&amount=5`),
+    {
+      from: BASE_USDC,
+      to: { address: xrplToken, chainId: "xrpl-mainnet" },
+      amount: "5",
+    }
+  );
+
+  const stellarToken = "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA";
+  assert.deepEqual(
+    resolve(`?fromChain=8453&fromToken=USDC&toChain=stellar-mainnet&toToken=${stellarToken}&amount=5`),
+    {
+      from: BASE_USDC,
+      to: { address: stellarToken, chainId: "stellar-mainnet" },
+      amount: "5",
+    }
+  );
+});
+
+test("source tokens stay strictly allowlisted and malformed destination tokens are rejected", () => {
+  const zoraBase = "0x1111111111111111111111111111111111111111";
+  assert.equal(
+    resolve(`?fromChain=8453&fromToken=${zoraBase}&toChain=8453&toToken=USDC&amount=5`),
+    null
+  );
+  assert.equal(
+    resolve("?fromChain=8453&fromToken=USDC&toChain=8453&toToken=0x0000000000000000000000000000000000000000&amount=5"),
+    null
+  );
+  assert.equal(
+    resolve("?fromChain=8453&fromToken=USDC&toChain=8453&toToken=ZORA&amount=5"),
+    null
+  );
+  assert.equal(
+    resolve("?fromChain=8453&fromToken=USDC&toChain=solana-mainnet-beta&toToken=ANT&amount=5"),
+    null
+  );
+  assert.equal(
+    resolve("?fromChain=8453&fromToken=USDC&toChain=1&toToken=0x833589fcd6edb6e08f4c7c32d4f71b54bda02913&amount=5"),
+    null
+  );
+  assert.equal(
+    resolve("?fromChain=__proto__&fromToken=toString&toChain=constructor&toToken=prototype&amount=5"),
+    null
+  );
+});
+
