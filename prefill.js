@@ -37,6 +37,30 @@
     }
   };
 
+  function hasOwn(obj, key) {
+    return Object.prototype.hasOwnProperty.call(obj, key);
+  }
+
+  var USDC_CHAIN_BY_ADDRESS = {};
+  for (var usdcChain in TOKEN_ADDRESSES.usdc) {
+    if (hasOwn(TOKEN_ADDRESSES.usdc, usdcChain)) {
+      USDC_CHAIN_BY_ADDRESS[TOKEN_ADDRESSES.usdc[usdcChain]] = usdcChain;
+    }
+  }
+
+  var COSMOS_BARE_CHAINS = {
+    celestia: true,
+    kava: true,
+    kichain: true,
+    neutron: true,
+    nyx: true,
+    regen: true,
+    sei: true,
+    sommelier: true,
+    terra: true,
+    thorchain: true
+  };
+
   var CHAIN_KEYS = ["fromChain", "from_chain"];
   var TO_CHAIN_KEYS = ["toChain", "to_chain"];
   var TOKEN_KEYS = ["fromToken", "from_token"];
@@ -131,28 +155,111 @@
   }
 
   function resolveChainId(chainRaw) {
-    if (CHAINS[chainRaw]) return CHAINS[chainRaw];
-    if (ALLOWED_CHAIN_IDS[chainRaw]) return ALLOWED_CHAIN_IDS[chainRaw];
+    if (hasOwn(CHAINS, chainRaw)) return CHAINS[chainRaw];
+    if (hasOwn(ALLOWED_CHAIN_IDS, chainRaw)) return ALLOWED_CHAIN_IDS[chainRaw];
     return "";
   }
 
-  function resolveAsset(chainRaw, tokenRaw) {
-    var chainId = resolveChainId(chainRaw);
+  function resolveAllowlistedAsset(chainRaw, tokenRaw) {
+    var chainLower = String(chainRaw || "").toLowerCase();
+    var tokenLower = String(tokenRaw || "").toLowerCase();
+    var chainId = resolveChainId(chainLower);
     if (!chainId) return null;
 
-    var bySymbol = TOKEN_ADDRESSES[tokenRaw];
-    if (bySymbol && bySymbol[chainId]) {
+    var bySymbol = hasOwn(TOKEN_ADDRESSES, tokenLower) ? TOKEN_ADDRESSES[tokenLower] : null;
+    if (bySymbol && hasOwn(bySymbol, chainId)) {
       return { address: bySymbol[chainId], chainId: chainId };
     }
 
-    if (!/^0x[0-9a-f]{40}$/.test(tokenRaw)) return null;
+    if (!/^0x[0-9a-f]{40}$/.test(tokenLower)) return null;
     var symbols = ["eth", "usdc"];
     for (var i = 0; i < symbols.length; i++) {
       var canonical = TOKEN_ADDRESSES[symbols[i]][chainId];
-      if (canonical === tokenRaw) {
+      if (canonical === tokenLower) {
         return { address: canonical, chainId: chainId };
       }
     }
+    return null;
+  }
+
+  // Listing buttons always fund from an allowlisted asset (USDC/ETH), while the
+  // destination may be any validated Squid catalog token contract/mint/denom.
+  function resolveDestinationAsset(chainRaw, tokenRaw) {
+    var rawChain = String(chainRaw || "").trim();
+    var rawToken = String(tokenRaw || "").trim();
+    if (!rawChain || !rawToken) return null;
+
+    var allowlisted = resolveAllowlistedAsset(rawChain, rawToken);
+    if (allowlisted) return allowlisted;
+
+    var chainLower = rawChain.toLowerCase();
+    var evmChain = resolveChainId(chainLower) || (/^[1-9]\d{0,9}$/.test(chainLower) ? chainLower : "");
+    if (evmChain) {
+      if (!/^0x[0-9a-fA-F]{40}$/.test(rawToken) || /^0x0{40}$/i.test(rawToken)) {
+        return null;
+      }
+      var lowerAddr = rawToken.toLowerCase();
+      if (hasOwn(USDC_CHAIN_BY_ADDRESS, lowerAddr) && USDC_CHAIN_BY_ADDRESS[lowerAddr] !== evmChain) {
+        return null;
+      }
+      if (evmChain === "137" && lowerAddr === NATIVE_ETH) {
+        return null;
+      }
+      return { address: lowerAddr, chainId: evmChain };
+    }
+
+    if (chainLower === "solana-mainnet-beta" || chainLower === "solana" || chainLower === "sol") {
+      if (/^0x[eE]{40}$/.test(rawToken)) {
+        return { address: NATIVE_ETH, chainId: "solana-mainnet-beta" };
+      }
+      if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(rawToken)) {
+        return { address: rawToken, chainId: "solana-mainnet-beta" };
+      }
+      return null;
+    }
+
+    if (chainLower === "sui-mainnet" || chainLower === "sui") {
+      var suiMatch = /^(0x[0-9a-fA-F]{1,64})::([A-Za-z_][A-Za-z0-9_]*)::([A-Za-z_][A-Za-z0-9_]*)$/.exec(rawToken);
+      if (!suiMatch) return null;
+      return {
+        address: suiMatch[1].toLowerCase() + "::" + suiMatch[2] + "::" + suiMatch[3],
+        chainId: "sui-mainnet"
+      };
+    }
+
+    if (chainLower === "xrpl-mainnet" || chainLower === "xrpl") {
+      if (rawToken.toLowerCase() === "xrp") {
+        return { address: "xrp", chainId: "xrpl-mainnet" };
+      }
+      var xrplMatch = /^([0-9A-Fa-f]{3,40})\.([1-9A-HJ-NP-Za-km-z]{25,35})$/.exec(rawToken);
+      if (!xrplMatch) return null;
+      return { address: xrplMatch[1].toUpperCase() + "." + xrplMatch[2], chainId: "xrpl-mainnet" };
+    }
+
+    if (chainLower === "stellar-mainnet" || chainLower === "stellar") {
+      if (/^C[A-Z2-7]{55}$/.test(rawToken)) {
+        return { address: rawToken, chainId: "stellar-mainnet" };
+      }
+      return null;
+    }
+
+    if (chainLower === "bitcoin") {
+      if (rawToken.toLowerCase() === "satoshi") {
+        return { address: "satoshi", chainId: "bitcoin" };
+      }
+      return null;
+    }
+
+    if (/^[a-z][a-z0-9_]{1,24}-[a-z0-9-]{1,16}$/.test(chainLower) || hasOwn(COSMOS_BARE_CHAINS, chainLower)) {
+      var ibcMatch = /^ibc\/([0-9A-Fa-f]{64})$/.exec(rawToken);
+      if (ibcMatch) {
+        return { address: "ibc/" + ibcMatch[1].toUpperCase(), chainId: chainLower };
+      }
+      if (/^(?:factory\/[A-Za-z0-9._\/-]{3,120}|[a-z][a-z0-9\/._-]{2,63})$/.test(rawToken)) {
+        return { address: rawToken, chainId: chainLower };
+      }
+    }
+
     return null;
   }
 
@@ -171,13 +278,13 @@
     var params = new URLSearchParams(String(search || "").replace(/^\?/, ""));
     var embedded = decodeStartParam(startParam || firstRaw(params, START_KEYS));
     var fallback = new URLSearchParams(embedded);
-    var fromAsset = resolveAsset(
+    var fromAsset = resolveAllowlistedAsset(
       pick(params, fallback, CHAIN_KEYS, true),
       pick(params, fallback, TOKEN_KEYS, true)
     );
-    var toAsset = resolveAsset(
-      pick(params, fallback, TO_CHAIN_KEYS, true),
-      pick(params, fallback, TO_TOKEN_KEYS, true)
+    var toAsset = resolveDestinationAsset(
+      pick(params, fallback, TO_CHAIN_KEYS, false),
+      pick(params, fallback, TO_TOKEN_KEYS, false)
     );
     if (!fromAsset || !toAsset) return null;
     var result = { from: fromAsset, to: toAsset };
